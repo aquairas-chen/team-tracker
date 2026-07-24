@@ -666,6 +666,25 @@ function allOpenAlerts(){
 function fmtTs(ts){ const d = new Date(ts); return (d.getMonth()+1) + "/" + d.getDate() + " " + String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0"); }
 
 /* ---- 成员动作 ---- */
+function startedBy(tid){
+  let out = null;
+  Object.keys(actions).forEach(mid => {
+    const s = (actions[mid] && actions[mid].started) || {};
+    if (s[tid] && (!out || s[tid] < out.ts)) out = { name: actions[mid].name || mid, ts: s[tid] };
+  });
+  return out;
+}
+async function memberToggleStart(tid){
+  if (!FB_ON || !me.id) { toast("请先选择你的名字"); openMeModal(); return; }
+  const mine = actions[me.id] || { completions: {}, started: {}, alerts: [], reads: {} };
+  mine.started = mine.started || {};
+  if (mine.started[tid]) delete mine.started[tid];
+  else mine.started[tid] = Date.now();
+  actions[me.id] = mine;
+  renderAll();
+  try { await saveMyActions(); toast(mine.started[tid] ? "🔄 已标记进行中，提醒角标已消除" : "已撤销进行中标记"); }
+  catch(e){ toast("同步失败：" + e.message); }
+}
 async function memberToggleDone(tid){
   if (!FB_ON || !me.id) { toast("请先选择你的名字"); openMeModal(); return; }
   const mine = actions[me.id] || { completions: {}, alerts: [], reads: {} };
@@ -833,8 +852,9 @@ function renderGantt(){
   html += '<div class="g-names">';
   DB.tasks.forEach(t => {
     const al = FB_ON ? taskAlerts(t.id).length : 0;
+    const st = FB_ON && startedBy(t.id) && !isDoneT(t);
     html += '<div class="g-rowname" style="width:' + NAME_W + 'px;">' +
-      '<div class="nm" style="color:' + (isLate(t) ? "#E53E3E" : "#2D3748") + ';">' + (isLate(t) ? "● " : "") + (al ? "⚠️ " : "") + esc(t.name) + "</div>" +
+      '<div class="nm" style="color:' + (isLate(t) ? "#E53E3E" : "#2D3748") + ';">' + (isLate(t) ? "● " : "") + (al ? "⚠️ " : "") + (st ? "▶ " : "") + esc(t.name) + "</div>" +
       '<div class="ow">' + esc(t.owner) + " · " + fmtD(pd(t.start)) + "-" + fmtD(pd(t.end)) + "</div></div>";
   });
   html += "</div>";
@@ -1028,7 +1048,7 @@ function taskStatus(t){
   if (isDoneT(t)) return "done";
   if (isLate(t)) return "late";
   const p = getP(t);
-  if (p > 0 || (today() >= pd(t.start) && today() <= pd(t.end))) return "doing";
+  if (p > 0 || startedBy(t.id) || (today() >= pd(t.start) && today() <= pd(t.end))) return "doing";
   return "todo";
 }
 
@@ -1100,7 +1120,7 @@ function renderMs(){
 
 /* ==================== 提醒（未启动任务 + 成员预警） ==================== */
 function stalledTasks(){
-  return DB.tasks.filter(t => today() > pd(t.start) && !isDoneT(t) && effP(t) === 0);
+  return DB.tasks.filter(t => today() > pd(t.start) && !isDoneT(t) && effP(t) === 0 && !startedBy(t.id));
 }
 function renderRemind(){
   const stalled = stalledTasks();
@@ -1125,7 +1145,7 @@ function renderRemind(){
         '<div class="mt">' + fmtTs(a.ts) + "</div></div>";
     });
   }
-  html += '<div class="rem-tip">任务一旦开始进度（进度 &gt; 0% 或被标记完成）<br>红点角标和提醒会自动消除 · 提醒每天首次打开时弹出一次</div>';
+  html += '<div class="rem-tip">消除方式：进度 &gt; 0%、成员标记「🔄 进行中」或「✅ 完成」<br>提醒每天首次打开时弹出一次</div>';
   $("remindList").innerHTML = html;
   $("remindList").querySelectorAll(".rem-card").forEach(c => {
     c.addEventListener("click", () => openSheet(c.dataset.tid));
@@ -1174,6 +1194,8 @@ function openSheet(tid){
   if (FB_ON) {
     const cb = completedBy(tid);
     if (cb) h += '<div class="done-by">✅ <b>' + esc(cb.name) + "</b> 于 " + fmtTs(cb.ts) + " 标记完成</div>";
+    const sb = startedBy(tid);
+    if (sb && !cb && !isDoneT(t)) h += '<div class="deps">🔄 <b>' + esc(sb.name) + "</b> 于 " + fmtTs(sb.ts) + " 标记进行中</div>";
     const als = taskAlerts(tid);
     als.forEach(a => {
       h += '<div class="alert-item"><span class="who">⚠️ ' + esc(a.name) + "</span>" +
@@ -1218,11 +1240,13 @@ function openSheet(tid){
     h += '<div style="font-size:12px;font-weight:700;color:#4A5568;margin-bottom:4px;">完成进度：' + effP(t) + "%</div>" +
       '<input type="range" min="0" max="100" value="' + effP(t) + '" disabled>';
     if (FB_ON) {
-      const mine = (me.id && actions[me.id] && actions[me.id].completions) || {};
-      const iDone = !!mine[tid];
+      const mineA = (me.id && actions[me.id]) || {};
+      const iDone = !!((mineA.completions || {})[tid]);
+      const iStart = !!((mineA.started || {})[tid]);
       h += '<div class="row-btns" style="margin-top:10px;">' +
-        '<button class="sbtn ' + (iDone ? "gray" : "ok") + '" id="mbDone">' + (iDone ? "↩ 撤销我的完成" : "✅ 我已完成") + "</button>" +
-        '<button class="sbtn danger" id="mbAlert">⚠️ 我要预警</button></div>' +
+        '<button class="sbtn ' + (iStart ? "gray" : "blue") + '" id="mbStart">' + (iStart ? "↩ 撤销进行中" : "🔄 进行中") + "</button>" +
+        '<button class="sbtn ' + (iDone ? "gray" : "ok") + '" id="mbDone">' + (iDone ? "↩ 撤销完成" : "✅ 我已完成") + "</button>" +
+        '<button class="sbtn danger" id="mbAlert">⚠️ 预警</button></div>' +
         '<div class="deps" style="margin-top:10px;">👤 当前身份：<b>' + (me.name ? esc(me.name) : "未选择") + '</b> <span class="ms-edit" id="mbWho">更换</span> · 计划修改仅管理员可操作</div>';
     } else {
       h += '<div class="deps" style="margin-top:10px;">🔒 只有管理员可以修改。如有问题请联系管理员更新。</div>';
@@ -1284,6 +1308,7 @@ function openSheet(tid){
     b.addEventListener("click", () => { ownerResolveAlert(b.dataset.aid); closeSheetSoon(); });
   });
   if ($("mbDone")) $("mbDone").addEventListener("click", () => { memberToggleDone(tid); closeSheetSoon(); });
+  if ($("mbStart")) $("mbStart").addEventListener("click", () => { memberToggleStart(tid); closeSheetSoon(); });
   if ($("mbAlert")) $("mbAlert").addEventListener("click", () => openAlertForm(t));
   if ($("mbWho")) $("mbWho").addEventListener("click", () => { closeSheet(); openMeModal(); });
 }
