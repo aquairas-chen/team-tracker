@@ -293,25 +293,12 @@
 </div>
 
 <div class="dock">
-  <button class="dbtn pri" id="btnShare">🔗 分享</button>
-  <button class="dbtn sec" id="btnQR">二维码</button>
   <button class="dbtn sec" id="btnRefresh">🔄 刷新</button>
   <button class="dbtn sec" id="btnAdmin">🔒 管理</button>
 </div>
 
 <div class="mask" id="mask"></div>
 <div class="sheet" id="sheet"></div>
-
-<div class="modal" id="qrModal">
-  <div class="box">
-    <h3>微信扫码 / 分享链接</h3>
-    <div class="hint" id="qrHint">成员打开链接后输入访问密码即可查看</div>
-    <div class="qr" id="qrBox"></div>
-    <div class="url-box" id="qrUrl"></div>
-    <button class="dbtn pri" style="width:100%;" id="qrCopy">复制链接</button>
-    <button class="dbtn sec" style="width:100%;margin-top:8px;" id="qrClose">关闭</button>
-  </div>
-</div>
 
 <div class="modal" id="patModal">
   <div class="box">
@@ -1481,21 +1468,7 @@ $("pwSave").addEventListener("click", async () => {
   await publishDB();
 });
 
-/* ==================== 分享 & 二维码 & 刷新 ==================== */
-function shareUrl(){ return location.href.split("#")[0]; }
-function copyText(txt, ok){
-  function done(){ toast(ok); }
-  function fallback(){
-    const ta = document.createElement("textarea");
-    ta.value = txt; ta.style.position = "fixed"; ta.style.opacity = "0";
-    document.body.appendChild(ta); ta.select();
-    try { document.execCommand("copy"); done(); } catch(e){ toast("复制失败，请手动复制"); }
-    document.body.removeChild(ta);
-  }
-  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(txt).then(done).catch(fallback);
-  else fallback();
-}
-$("btnShare").addEventListener("click", () => copyText(shareUrl(), "✅ 链接已复制，去微信粘贴分享吧"));
+/* ==================== 刷新 ==================== */
 $("btnRefresh").addEventListener("click", async () => {
   if (!isRemote()) { renderAll(); toast("已刷新（单机模式）"); return; }
   toast("正在获取最新计划…");
@@ -1503,24 +1476,6 @@ $("btnRefresh").addEventListener("click", async () => {
   if (FB_ON) await loadFeedback();
   if (ok) { renderAll(); markRead().catch(() => {}); toast("✅ 已是最新"); }
 });
-$("btnQR").addEventListener("click", () => {
-  const url = shareUrl();
-  $("qrUrl").textContent = url;
-  const box = $("qrBox"); box.innerHTML = "";
-  if (typeof qrcode !== "undefined") {
-    try { const qr = qrcode(0, "M"); qr.addData(url); qr.make(); box.innerHTML = qr.createImgTag(5, 6); }
-    catch(e){ box.innerHTML = '<div style="font-size:12px;color:#9AA7B5;">二维码生成失败，请直接复制链接</div>'; }
-  }
-  if (/^(file:|https?:\/\/(localhost|127\.|192\.168\.|10\.))/.test(url)) {
-    $("qrHint").innerHTML = "⚠️ 当前是<b>本地预览</b>链接，别人打不开。<br>部署上线后这里即是正式分享链接。";
-  } else {
-    $("qrHint").textContent = "成员扫码或点链接打开后，输入访问密码即可查看";
-  }
-  $("qrModal").classList.add("on");
-});
-$("qrClose").addEventListener("click", () => $("qrModal").classList.remove("on"));
-$("qrCopy").addEventListener("click", () => copyText(shareUrl(), "✅ 链接已复制"));
-$("qrModal").addEventListener("click", e => { if (e.target === $("qrModal")) $("qrModal").classList.remove("on"); });
 
 /* ==================== 视图切换 & 缩放 ==================== */
 document.querySelectorAll(".tab").forEach(b => {
