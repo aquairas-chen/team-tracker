@@ -192,6 +192,27 @@
   .st.unread { color: #E53E3E; }
   .editbar { flex-wrap: wrap; }
   textarea.reason { width: 100%; min-height: 80px; font-size: 14px; padding: 10px; border: 1.5px solid #D9E2EC; border-radius: 9px; outline: none; resize: vertical; }
+
+  /* ===== 提醒 tab & 导出 ===== */
+  .tab { position: relative; }
+  .tabdot { display: none; position: absolute; top: 3px; right: 6px; background: #E53E3E; color: #fff; font-size: 9px; font-weight: 800; min-width: 15px; height: 15px; line-height: 15px; border-radius: 8px; padding: 0 4px; text-align: center; box-shadow: 0 0 0 2px rgba(255,255,255,.9); }
+  .tabdot.on { display: inline-block; }
+  .rem-h { font-size: 13px; font-weight: 800; color: #C53030; margin: 14px 2px 8px; display: flex; align-items: center; gap: 6px; }
+  .rem-card { background: #fff; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; border-left: 4px solid #E53E3E; box-shadow: 0 1px 5px rgba(20,40,60,.06); }
+  .rem-card .nm { font-size: 13.5px; font-weight: 700; }
+  .rem-card .why { font-size: 11.5px; color: #C53030; margin-top: 4px; font-weight: 700; }
+  .rem-card .mt { font-size: 11px; color: #8A97A8; margin-top: 3px; }
+  .rem-card.amber { border-left-color: #DD6B20; }
+  .rem-card.amber .why { color: #C05621; }
+  .rem-ok { text-align: center; color: #38A169; font-size: 13px; font-weight: 700; padding: 26px 0 10px; }
+  .rem-tip { text-align: center; font-size: 11px; color: #9AA7B5; padding: 6px 20px 20px; line-height: 1.7; }
+  .exp-ovl { position: fixed; inset: 0; z-index: 210; background: rgba(15,25,40,.9); display: none; flex-direction: column; align-items: center; justify-content: center; padding: 18px; }
+  .exp-ovl.on { display: flex; }
+  .exp-ovl img { max-width: 100%; max-height: 76vh; border-radius: 10px; background: #fff; }
+  .exp-ovl .hint2 { color: #fff; font-size: 13px; margin: 14px 0; text-align: center; line-height: 1.7; }
+  .g-axis { position: sticky; bottom: 0; z-index: 6; background: #F8FAFC; border-top: 1px solid #E2E8F0; }
+  .g-axiscorner { position: sticky; left: 0; bottom: 0; z-index: 7; background: #F8FAFC; border-top: 1px solid #E2E8F0; border-right: 1px solid #E2E8F0; }
+  .ax { position: absolute; top: 6px; font-size: 10px; font-weight: 600; color: #55606E; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -214,9 +235,10 @@
   </div>
   <nav class="tabs">
     <button class="tab on" data-v="gantt">甘特图</button>
-    <button class="tab" data-v="dep">依赖关系图</button>
+    <button class="tab" data-v="dep">依赖图</button>
     <button class="tab" data-v="list">任务列表</button>
     <button class="tab" data-v="ms">里程碑</button>
+    <button class="tab" data-v="remind">提醒<span class="tabdot" id="tabDot"></span></button>
   </nav>
 </header>
 
@@ -227,6 +249,7 @@
       <button class="tbtn" id="zoomIn">＋</button>
       <button class="tbtn on" id="toggleDeps">依赖连线</button>
       <button class="tbtn" id="goToday">回到今天</button>
+      <button class="tbtn" id="btnExport">📸 导出PNG</button>
       <span style="font-size:11px;color:#8A97A8;" id="ganttTip">点按任务条查看详情</span>
     </div>
     <div class="gantt-scroll" id="ganttScroll"><div class="gantt-inner" id="ganttInner"></div></div>
@@ -253,6 +276,10 @@
     <div class="cd-cards" id="cdCards"></div>
     <div class="ms-wrap"><div class="timeline" id="msTimeline"></div></div>
     <div class="sync-note" id="syncNote"></div>
+  </section>
+
+  <section class="view" id="v-remind">
+    <div id="remindList"></div>
   </section>
 </main>
 
@@ -317,6 +344,12 @@
   </div>
 </div>
 
+<div class="exp-ovl" id="expOvl">
+  <img id="expImg" alt="甘特图导出">
+  <div class="hint2">📱 微信里长按图片 → 保存到相册<br>电脑端会自动下载 PNG 文件</div>
+  <button class="dbtn pri" style="max-width:200px;width:100%;" id="expClose">关闭</button>
+</div>
+
 <div class="lock" id="lockScr">
   <div class="box">
     <div class="ic">🔐</div>
@@ -349,8 +382,19 @@ const DEFAULT_DB = null;
 
 /* ==================== 工具 ==================== */
 const DAY = 86400000;
-const MIN_DATE = new Date(2026, 4, 10);
-const MAX_DATE = new Date(2026, 10, 5);
+let MIN_DATE = new Date(2026, 4, 10);
+let MAX_DATE = new Date(2026, 10, 5);
+function computeGanttRange(){
+  let mn = new Date(2026, 4, 10), mx = new Date(2026, 10, 5);
+  if (DB && DB.tasks) DB.tasks.forEach(t => {
+    if (pd(t.start) < mn) mn = pd(t.start);
+    if (pd(t.end) > mx) mx = pd(t.end);
+  });
+  if (today() < mn) mn = today();
+  if (today() > mx) mx = today();
+  MIN_DATE = new Date(mn.getTime() - 10 * DAY);
+  MAX_DATE = new Date(mx.getTime() + 14 * DAY);
+}
 function pd(s){ const p = s.split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
 function fmtD(d){ return (d.getMonth()+1) + "/" + d.getDate(); }
 function today(){ const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
@@ -738,18 +782,31 @@ function renderHeader(){
 /* ==================== 甘特图 ==================== */
 let ppd = window.innerWidth < 600 ? 9 : 14;
 let showDeps = true;
-const ROW_H = 38, NAME_W = 132, HEAD_H = 40;
-const totalDays = Math.round((MAX_DATE - MIN_DATE) / DAY);
+const ROW_H = 38, NAME_W = 132, HEAD_H = 46, AXIS_H = 26;
 const ganttPos = {};
 
+function weekTicks(){
+  // 生成每周日期刻度 {x(date), label}
+  const out = [];
+  let d = new Date(MIN_DATE);
+  while (d < MAX_DATE) {
+    if (d.getDay() === 1 || d.getDate() === 1) out.push(new Date(d));
+    d = new Date(d.getTime() + DAY);
+  }
+  return out;
+}
+
 function renderGantt(){
+  computeGanttRange();
+  const totalDays = Math.round((MAX_DATE - MIN_DATE) / DAY);
   const W = totalDays * ppd;
+  const rowsH = DB.tasks.length * ROW_H;
   const inner = $("ganttInner");
   inner.style.width = (NAME_W + W) + "px";
-  inner.style.height = (HEAD_H + DB.tasks.length * ROW_H) + "px";
+  inner.style.height = (HEAD_H + rowsH + AXIS_H) + "px";
   inner.style.display = "grid";
   inner.style.gridTemplateColumns = NAME_W + "px " + W + "px";
-  inner.style.gridTemplateRows = HEAD_H + "px " + (DB.tasks.length * ROW_H) + "px";
+  inner.style.gridTemplateRows = HEAD_H + "px " + rowsH + "px " + AXIS_H + "px";
 
   let html = "";
   html += '<div class="g-corner"></div>';
@@ -760,17 +817,17 @@ function renderGantt(){
     const segEnd = mEnd > MAX_DATE ? MAX_DATE : mEnd;
     const x = Math.round((d - MIN_DATE)/DAY) * ppd;
     const w = Math.round((segEnd - d)/DAY) * ppd;
-    html += '<div class="mh" style="left:' + x + 'px;width:' + w + 'px;">' + (d.getMonth()+1) + "月</div>";
+    html += '<div class="mh" style="left:' + x + 'px;width:' + w + 'px;height:24px;">' + (d.getMonth()+1) + "月</div>";
     d = segEnd;
   }
-  d = new Date(MIN_DATE);
-  while (d < MAX_DATE) {
-    if (d.getDay() === 1) {
-      const x = Math.round((d - MIN_DATE)/DAY) * ppd;
-      if (ppd >= 7) html += '<div class="wk" style="left:' + (x+2) + 'px;bottom:2px;">' + fmtD(d) + "</div>";
-    }
-    d = new Date(d.getTime() + DAY);
-  }
+  // 顶部日期刻度（每周一 + 每月1号；太密时隔周显示）
+  const ticks = weekTicks();
+  const skip = ppd < 8 ? 2 : 1;
+  ticks.forEach((td, i) => {
+    if (i % skip !== 0 && td.getDate() !== 1) return;
+    const x = Math.round((td - MIN_DATE)/DAY) * ppd;
+    html += '<div class="wk" style="left:' + (x+3) + 'px;bottom:4px;font-size:10px;color:#55606E;font-weight:600;">' + fmtD(td) + "</div>";
+  });
   html += "</div>";
 
   html += '<div class="g-names">';
@@ -841,6 +898,17 @@ function renderGantt(){
   }
 
   html += "</div>";
+
+  // 底部常驻日期轴（随横向滚动对齐，纵向滚动时吸附底部）
+  html += '<div class="g-axiscorner" style="display:flex;align-items:center;justify-content:center;font-size:10px;color:#8A97A8;font-weight:700;">日期 ↑</div>';
+  html += '<div class="g-axis">';
+  ticks.forEach((td, i) => {
+    if (i % skip !== 0 && td.getDate() !== 1) return;
+    const x = Math.round((td - MIN_DATE)/DAY) * ppd;
+    html += '<div class="ax" style="left:' + (x+3) + 'px;' + (td.getDate() === 1 ? 'font-weight:800;color:#1E3A5F;' : '') + '">' + fmtD(td) + "</div>";
+  });
+  html += "</div>";
+
   inner.innerHTML = html;
   inner.querySelectorAll(".g-bar").forEach(el => {
     el.addEventListener("click", e => { e.stopPropagation(); openSheet(el.dataset.tid); });
@@ -1030,12 +1098,63 @@ function renderMs(){
   }
 }
 
+/* ==================== 提醒（未启动任务 + 成员预警） ==================== */
+function stalledTasks(){
+  return DB.tasks.filter(t => today() > pd(t.start) && !isDoneT(t) && effP(t) === 0);
+}
+function renderRemind(){
+  const stalled = stalledTasks();
+  const alerts = FB_ON ? allOpenAlerts() : [];
+  let html = '<div class="rem-h">🔴 未启动提醒（' + stalled.length + '）</div>';
+  if (!stalled.length) html += '<div class="rem-ok">👍 没有「过了开始日期仍未启动」的任务</div>';
+  stalled.forEach(t => {
+    const days = Math.round((today() - pd(t.start)) / DAY);
+    html += '<div class="rem-card" data-tid="' + t.id + '">' +
+      '<div class="nm">' + esc(t.name) + "</div>" +
+      '<div class="why">已过开始日期 ' + days + ' 天，进度仍是 0%</div>' +
+      '<div class="mt">👤 ' + esc(t.owner) + " · 应开始 " + fmtD(pd(t.start)) + " · 截止 " + fmtD(pd(t.end)) + "</div></div>";
+  });
+  if (FB_ON) {
+    html += '<div class="rem-h" style="color:#C05621;">⚠️ 成员预警（' + alerts.length + '）</div>';
+    if (!alerts.length) html += '<div class="rem-ok" style="color:#9AA7B5;">暂无成员预警</div>';
+    alerts.forEach(a => {
+      const t = TMAP[a.taskId];
+      html += '<div class="rem-card amber" data-tid="' + a.taskId + '">' +
+        '<div class="nm">' + esc(t ? t.name : a.taskId) + "</div>" +
+        '<div class="why">⚠️ ' + esc(a.name) + "：" + esc(a.reason) + "</div>" +
+        '<div class="mt">' + fmtTs(a.ts) + "</div></div>";
+    });
+  }
+  html += '<div class="rem-tip">任务一旦开始进度（进度 &gt; 0% 或被标记完成）<br>红点角标和提醒会自动消除 · 提醒每天首次打开时弹出一次</div>';
+  $("remindList").innerHTML = html;
+  $("remindList").querySelectorAll(".rem-card").forEach(c => {
+    c.addEventListener("click", () => openSheet(c.dataset.tid));
+  });
+}
+function updateRemindBadge(){
+  const n = DB ? stalledTasks().length : 0;
+  const d = $("tabDot");
+  d.textContent = n;
+  d.classList.toggle("on", n > 0);
+}
+function dailyRemindPopup(){
+  const key = "tpd_remind_last";
+  const todayStr = today().toISOString().slice(0, 10);
+  const n = stalledTasks().length;
+  if (n > 0 && lsGet(key) !== todayStr) {
+    lsSet(key, todayStr);
+    setTimeout(() => toast("🔴 今日提醒：" + n + " 项任务已过开始日期仍未启动（见「提醒」tab）"), 1200);
+  }
+}
+
 function renderAll(){
   renderHeader();
+  updateRemindBadge();
   if ($("v-gantt").classList.contains("on")) renderGantt();
   if ($("v-dep").classList.contains("on")) renderDep();
   if ($("v-list").classList.contains("on")) renderList();
   if ($("v-ms").classList.contains("on")) renderMs();
+  if ($("v-remind").classList.contains("on")) renderRemind();
 }
 function afterChange(){ renderAll(); }
 
@@ -1399,6 +1518,150 @@ $("depZoomIn").addEventListener("click", () => { depScale = Math.min(depScale * 
 $("depZoomOut").addEventListener("click", () => { depScale = Math.max(depScale / 1.25, 0.45); renderDep(); });
 $("toggleCrit").addEventListener("click", function(){ showCrit = !showCrit; this.classList.toggle("on", showCrit); renderDep(); });
 
+/* ==================== 甘特图导出 PNG ==================== */
+function exportGanttPNG(){
+  computeGanttRange();
+  const ppdE = 14, NWE = 210, AXE = 30, TITE = 74;
+  const ticks = weekTicks();
+  const td = Math.round((MAX_DATE - MIN_DATE)/DAY);
+  const W = td * ppdE, rowsH = DB.tasks.length * ROW_H;
+  const groups = Object.keys(DB.groups);
+  const legRows = Math.ceil(groups.length / 6);
+  const LEGH = legRows * 26 + 20;
+  const Wc = NWE + W, Hc = TITE + HEAD_H + rowsH + AXE + LEGH + 16;
+  const S = 2;
+  const cv = document.createElement("canvas");
+  cv.width = Wc * S; cv.height = Hc * S;
+  const ctx = cv.getContext("2d");
+  ctx.scale(S, S);
+  const FONT = '"PingFang SC","Microsoft YaHei",sans-serif';
+  const X = dt => NWE + Math.round((dt - MIN_DATE)/DAY) * ppdE;
+  function rr(x, y, w, h, r){
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill(); }
+    else ctx.fillRect(x, y, w, h);
+  }
+  // 背景 + 标题条
+  ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, Wc, Hc);
+  ctx.fillStyle = "#1E3A5F"; ctx.fillRect(0, 0, Wc, TITE);
+  const doneN = DB.tasks.filter(isDoneT).length;
+  const lateN = DB.tasks.filter(isLate).length;
+  const tnow = today();
+  const tstr = tnow.getFullYear() + "/" + (tnow.getMonth()+1) + "/" + tnow.getDate();
+  ctx.fillStyle = "#FFFFFF"; ctx.font = "bold 26px " + FONT; ctx.textBaseline = "alphabetic";
+  ctx.fillText("项目全链路甘特图", 24, 34);
+  ctx.font = "13px " + FONT; ctx.fillStyle = "rgba(255,255,255,.85)";
+  ctx.fillText("9月出货 · 10月香港参展 ｜ 已完成 " + doneN + "/" + DB.tasks.length + " ｜ 延期 " + lateN + " 项", 24, 58);
+  ctx.font = "bold 14px " + FONT; ctx.fillStyle = "#FFD9A8";
+  const ds = "导出于 " + tstr;
+  ctx.fillText(ds, Wc - 24 - ctx.measureText(ds).width, 34);
+  ctx.font = "12px " + FONT; ctx.fillStyle = "rgba(255,255,255,.7)";
+  const d2s = "今日线 = 当天真实日期";
+  ctx.fillText(d2s, Wc - 24 - ctx.measureText(d2s).width, 56);
+  // 表头
+  const HY = TITE;
+  ctx.fillStyle = "#F8FAFC"; ctx.fillRect(0, HY, Wc, HEAD_H);
+  ctx.strokeStyle = "#E2E8F0"; ctx.beginPath(); ctx.moveTo(0, HY + HEAD_H + .5); ctx.lineTo(Wc, HY + HEAD_H + .5); ctx.stroke();
+  let d = new Date(MIN_DATE);
+  ctx.textBaseline = "middle";
+  while (d < MAX_DATE) {
+    const mEnd = new Date(d.getFullYear(), d.getMonth()+1, 1);
+    const segEnd = mEnd > MAX_DATE ? MAX_DATE : mEnd;
+    const x = X(d);
+    ctx.fillStyle = "#4A5568"; ctx.font = "bold 12px " + FONT;
+    ctx.fillText((d.getMonth()+1) + "月", x + 6, HY + 13);
+    ctx.strokeStyle = "#D5DEE8"; ctx.beginPath(); ctx.moveTo(x + .5, HY); ctx.lineTo(x + .5, HY + HEAD_H + rowsH); ctx.stroke();
+    d = segEnd;
+  }
+  ctx.font = "10px " + FONT;
+  ticks.forEach(td2 => {
+    const x = X(td2);
+    ctx.fillStyle = "#55606E";
+    ctx.fillText(fmtD(td2), x + 3, HY + 34);
+    if (td2.getDate() !== 1) {
+      ctx.strokeStyle = "#EEF2F6"; ctx.beginPath(); ctx.moveTo(x + .5, HY + 24); ctx.lineTo(x + .5, HY + HEAD_H + rowsH); ctx.stroke();
+    }
+  });
+  // 任务行
+  DB.tasks.forEach((t, i) => {
+    const y = HY + HEAD_H + i * ROW_H;
+    ctx.strokeStyle = "#F0F4F8"; ctx.beginPath(); ctx.moveTo(0, y + ROW_H + .5); ctx.lineTo(Wc, y + ROW_H + .5); ctx.stroke();
+    const late = isLate(t);
+    ctx.fillStyle = late ? "#E53E3E" : "#2D3748"; ctx.font = "bold 11px " + FONT;
+    let nm = t.name; if (ctx.measureText(nm).width > NWE - 16) { while (ctx.measureText(nm + "…").width > NWE - 16) nm = nm.slice(0, -1); nm += "…"; }
+    ctx.fillText((late ? "● " : "") + nm, 10, y + 13);
+    ctx.fillStyle = "#8A97A8"; ctx.font = "10px " + FONT;
+    ctx.fillText(t.owner + " · " + fmtD(pd(t.start)) + "-" + fmtD(pd(t.end)), 10, y + 29);
+    const bx = X(pd(t.start)), bw = Math.max((Math.round((pd(t.end)-pd(t.start))/DAY)+1) * ppdE, 8);
+    const c = groupColor(t.group), p = effP(t);
+    ctx.fillStyle = c + "55"; rr(bx, y + 9, bw, 20, 5);
+    ctx.fillStyle = c; if (p > 0) rr(bx, y + 9, Math.max(bw * p/100, 3), 20, 5);
+    ctx.strokeStyle = c; ctx.lineWidth = 1; ctx.strokeRect(bx + .5, y + 9.5, bw - 1, 19);
+    if (late) { ctx.strokeStyle = "#E53E3E"; ctx.lineWidth = 2; ctx.strokeRect(bx - 1, y + 8, bw + 2, 22); }
+    if (isDoneT(t)) { ctx.fillStyle = "#FFFFFF"; ctx.font = "bold 12px " + FONT; ctx.fillText("✓", bx + bw - 14, y + 19); }
+  });
+  ctx.lineWidth = 1;
+  // 里程碑 + 今天
+  DB.milestones.forEach(m => {
+    const x = X(pd(m.date));
+    if (x < NWE || x > Wc) return;
+    ctx.strokeStyle = m.hard ? "#E53E3E" : "#9B59B6";
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(x + .5, HY); ctx.lineTo(x + .5, HY + HEAD_H + rowsH); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = m.hard ? "#E53E3E" : "#9B59B6"; ctx.font = "bold 10px " + FONT;
+    ctx.fillText(m.label.slice(0, 10), x + 4, HY + HEAD_H + rowsH + 15);
+  });
+  const tx = X(tnow);
+  if (tx >= NWE && tx <= Wc) {
+    ctx.strokeStyle = "#E53E3E"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(tx, HY); ctx.lineTo(tx, HY + HEAD_H + rowsH); ctx.stroke();
+    ctx.lineWidth = 1;
+    ctx.fillStyle = "#E53E3E";
+    rr(tx - 26, HY + 2, 52, 18, 9);
+    ctx.fillStyle = "#FFFFFF"; ctx.font = "bold 11px " + FONT;
+    ctx.fillText("今天", tx - 12, HY + 11);
+  }
+  // 底部轴
+  const AY = HY + HEAD_H + rowsH;
+  ctx.fillStyle = "#F8FAFC"; ctx.fillRect(0, AY, Wc, AXE);
+  ctx.strokeStyle = "#E2E8F0"; ctx.beginPath(); ctx.moveTo(0, AY + .5); ctx.lineTo(Wc, AY + .5); ctx.stroke();
+  ctx.font = "10px " + FONT;
+  ticks.forEach(td2 => {
+    const x = X(td2);
+    ctx.fillStyle = td2.getDate() === 1 ? "#1E3A5F" : "#55606E";
+    if (td2.getDate() === 1) ctx.font = "bold 10px " + FONT;
+    ctx.fillText(fmtD(td2), x + 3, AY + AXE/2);
+    if (td2.getDate() === 1) ctx.font = "10px " + FONT;
+  });
+  // 图例
+  let lx = 16, ly = AY + AXE + 20;
+  ctx.font = "11px " + FONT;
+  groups.forEach((g, i) => {
+    if (i % 6 === 0 && i > 0) { lx = 16; ly += 26; }
+    ctx.fillStyle = DB.groups[g]; ctx.fillRect(lx, ly - 8, 10, 10);
+    ctx.fillStyle = "#55606E"; ctx.fillText(g, lx + 14, ly - 2);
+    lx += 14 + ctx.measureText(g).width + 22;
+  });
+  // 输出
+  const fname = "甘特图_" + tnow.getFullYear() + "-" + String(tnow.getMonth()+1).padStart(2,"0") + "-" + String(tnow.getDate()).padStart(2,"0") + ".png";
+  cv.toBlob(function(blob){
+    const url = URL.createObjectURL(blob);
+    if (/MicroMessenger/i.test(navigator.userAgent)) {
+      $("expImg").src = url;
+      $("expOvl").classList.add("on");
+      toast("📱 长按图片保存到相册");
+    } else {
+      const a = document.createElement("a");
+      a.href = url; a.download = fname;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      toast("📸 已导出 " + fname);
+    }
+  }, "image/png");
+}
+$("btnExport").addEventListener("click", exportGanttPNG);
+$("expClose").addEventListener("click", () => $("expOvl").classList.remove("on"));
+$("expOvl").addEventListener("click", e => { if (e.target === $("expOvl")) $("expOvl").classList.remove("on"); });
+
 /* ==================== 启动 ==================== */
 async function afterUnlock(){
   FB_ON = !!(CONFIG.fbApiUrl && DB.fbToken);
@@ -1440,7 +1703,9 @@ $("lockInput").addEventListener("keydown", e => { if (e.key === "Enter") tryUnlo
 
 function startApp(){
   renderAll();
+  dailyRemindPopup();
   setTimeout(() => {
+    computeGanttRange();
     const tx = Math.round((today() - MIN_DATE)/DAY) * ppd;
     $("ganttScroll").scrollLeft = Math.max(0, tx - window.innerWidth/3);
   }, 100);
