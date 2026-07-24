@@ -1,0 +1,22 @@
+name: daily-wechat-remind
+
+on:
+  schedule:
+    # 每天 21:17 北京时间（13:17 UTC）
+    - cron: '17 13 * * *'
+  workflow_dispatch:   # 允许在 Actions 页面手动触发测试
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: 解密计划并推送微信提醒
+        run: node scripts/remind.mjs
+        env:
+          VIEW_PW: ${{ secrets.VIEW_PW }}
+          SCT_KEY: ${{ secrets.SCT_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
