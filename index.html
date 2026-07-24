@@ -46,7 +46,7 @@
   .gantt-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
   .tbtn { font-size: 12px; font-weight: 700; color: #2D3748; background: #fff; border: 1px solid #D9E2EC; padding: 6px 12px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
   .tbtn.on { background: #1E3A5F; color: #fff; border-color: #1E3A5F; }
-  .gantt-scroll { overflow: auto; -webkit-overflow-scrolling: touch; background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(20,40,60,.07); max-height: calc(100vh - 260px); position: relative; }
+  .gantt-scroll { overflow: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(20,40,60,.07); max-height: calc(100vh - 260px); position: relative; }
   .gantt-inner { position: relative; }
   .g-head { position: sticky; top: 0; z-index: 6; background: #F8FAFC; border-bottom: 1px solid #E2E8F0; }
   .g-names { position: sticky; left: 0; z-index: 5; background: #fff; }
@@ -70,7 +70,7 @@
   .lg { display: flex; align-items: center; gap: 4px; font-size: 10.5px; color: #55606E; }
   .lg i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
 
-  .dep-scroll { overflow: auto; background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(20,40,60,.07); max-height: calc(100vh - 260px); }
+  .dep-scroll { overflow: auto; touch-action: pan-x pan-y; background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(20,40,60,.07); max-height: calc(100vh - 260px); }
   .dep-node rect { cursor: pointer; }
   .dep-node.dim, .dep-edge.dim { opacity: .13; }
   .dep-edge { fill: none; stroke: #B8C4D0; stroke-width: 1.6; }
@@ -261,7 +261,7 @@
       <button class="tbtn" id="depZoomOut">－</button>
       <button class="tbtn" id="depZoomIn">＋</button>
       <button class="tbtn" id="toggleCrit">关键路径</button>
-      <span style="font-size:11px;color:#8A97A8;">点节点查看上下游链路</span>
+      <span style="font-size:11px;color:#8A97A8;">双指缩放 · 点节点查看上下游链路</span>
     </div>
     <div class="dep-scroll" id="depScroll"></div>
   </section>
@@ -788,7 +788,8 @@ function renderHeader(){
 /* ==================== 甘特图 ==================== */
 let ppd = window.innerWidth < 600 ? 9 : 14;
 let showDeps = true;
-const ROW_H = 38, NAME_W = 132, HEAD_H = 46, AXIS_H = 26;
+const ROW_H = 38, HEAD_H = 46, AXIS_H = 26;
+const NAME_W = window.innerWidth < 600 ? 104 : 132;
 const ganttPos = {};
 
 function weekTicks(){
@@ -826,11 +827,11 @@ function renderGantt(){
     html += '<div class="mh" style="left:' + x + 'px;width:' + w + 'px;height:24px;">' + (d.getMonth()+1) + "月</div>";
     d = segEnd;
   }
-  // 顶部日期刻度（每周一 + 每月1号；太密时隔周显示）
+  // 顶部日期刻度（每周一 + 每月1号；缩小时降低密度，极小时只显示每月1号）
   const ticks = weekTicks();
-  const skip = ppd < 8 ? 2 : 1;
+  const skip = ppd < 5 ? 0 : ppd < 8 ? 2 : 1;  // 0 = 只显示每月1号
   ticks.forEach((td, i) => {
-    if (i % skip !== 0 && td.getDate() !== 1) return;
+    if ((skip === 0 || i % skip !== 0) && td.getDate() !== 1) return;
     const x = Math.round((td - MIN_DATE)/DAY) * ppd;
     html += '<div class="wk" style="left:' + (x+3) + 'px;bottom:4px;font-size:10px;color:#55606E;font-weight:600;">' + fmtD(td) + "</div>";
   });
@@ -910,7 +911,7 @@ function renderGantt(){
   html += '<div class="g-axiscorner" style="display:flex;align-items:center;justify-content:center;font-size:10px;color:#8A97A8;font-weight:700;">日期 ↑</div>';
   html += '<div class="g-axis">';
   ticks.forEach((td, i) => {
-    if (i % skip !== 0 && td.getDate() !== 1) return;
+    if ((skip === 0 || i % skip !== 0) && td.getDate() !== 1) return;
     const x = Math.round((td - MIN_DATE)/DAY) * ppd;
     html += '<div class="ax" style="left:' + (x+3) + 'px;' + (td.getDate() === 1 ? 'font-weight:800;color:#1E3A5F;' : '') + '">' + fmtD(td) + "</div>";
   });
@@ -924,7 +925,7 @@ function renderGantt(){
   let lg = "";
   Object.keys(DB.groups).forEach(g => { lg += '<span class="lg"><i style="background:' + DB.groups[g] + ';"></i>' + esc(g) + "</span>"; });
   $("legend").innerHTML = lg;
-  $("ganttTip").textContent = canEdit() ? "点按任务条更新进度" : "点按任务条查看详情";
+  $("ganttTip").textContent = (canEdit() ? "点按任务条更新进度" : "点按任务条查看详情") + "，双指可缩放";
 }
 
 /* ==================== 依赖关系图 ==================== */
@@ -1487,16 +1488,59 @@ document.querySelectorAll(".tab").forEach(b => {
     renderAll();
   });
 });
-$("zoomIn").addEventListener("click", () => { ppd = Math.min(ppd * 1.3, 40); renderGantt(); });
-$("zoomOut").addEventListener("click", () => { ppd = Math.max(ppd / 1.3, 4); renderGantt(); });
+const PPD_MIN = 3, PPD_MAX = 40, DEP_MIN = 0.3, DEP_MAX = 3;
+$("zoomIn").addEventListener("click", () => { ppd = Math.min(ppd * 1.3, PPD_MAX); renderGantt(); });
+$("zoomOut").addEventListener("click", () => { ppd = Math.max(ppd / 1.3, PPD_MIN); renderGantt(); });
 $("toggleDeps").addEventListener("click", function(){ showDeps = !showDeps; this.classList.toggle("on", showDeps); renderGantt(); });
 $("goToday").addEventListener("click", () => {
   const tx = Math.round((today() - MIN_DATE)/DAY) * ppd;
   $("ganttScroll").scrollLeft = Math.max(0, tx - window.innerWidth/2);
 });
-$("depZoomIn").addEventListener("click", () => { depScale = Math.min(depScale * 1.25, 2.5); renderDep(); });
-$("depZoomOut").addEventListener("click", () => { depScale = Math.max(depScale / 1.25, 0.45); renderDep(); });
+$("depZoomIn").addEventListener("click", () => { depScale = Math.min(depScale * 1.25, DEP_MAX); renderDep(); });
+$("depZoomOut").addEventListener("click", () => { depScale = Math.max(depScale / 1.25, DEP_MIN); renderDep(); });
 $("toggleCrit").addEventListener("click", function(){ showCrit = !showCrit; this.classList.toggle("on", showCrit); renderDep(); });
+
+/* ==================== 双指缩放（以双指中心为锚点） ==================== */
+function bindPinch(el, opt){
+  let st = null;
+  const mid = t => ({ x: (t[0].clientX + t[1].clientX)/2, y: (t[0].clientY + t[1].clientY)/2 });
+  const dist = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  el.addEventListener("touchstart", e => {
+    if (e.touches.length !== 2) { st = null; return; }
+    const r = el.getBoundingClientRect(), m = mid(e.touches);
+    st = { d0: dist(e.touches) || 1, s0: opt.get(), sl: el.scrollLeft, sp: el.scrollTop,
+           vx: m.x - r.left, vy: m.y - r.top };
+    st.ax = (st.sl + st.vx - (opt.offX || 0)) / st.s0;  // 锚点的内容坐标（与缩放无关）
+    st.ay = (st.sp + st.vy) / st.s0;
+  }, { passive: true });
+  el.addEventListener("touchmove", e => {
+    if (!st || e.touches.length !== 2) return;
+    e.preventDefault();
+    const s1 = opt.clamp(st.s0 * dist(e.touches) / st.d0);
+    if (Math.abs(s1 - opt.get()) < 1e-6) return;
+    opt.set(s1);  // 触发重渲染
+    el.scrollLeft = st.ax * s1 + (opt.offX || 0) - st.vx;
+    if (opt.vertical) el.scrollTop = st.ay * s1 - st.vy;
+  }, { passive: false });
+  el.addEventListener("touchend", e => { if (e.touches.length < 2) st = null; }, { passive: true });
+  el.addEventListener("touchcancel", () => { st = null; }, { passive: true });
+}
+
+// 甘特图：只缩放右侧图表区（ppd），左侧任务名列固定；最小 3px/天，最大 40px/天
+bindPinch($("ganttScroll"), {
+  get: () => ppd,
+  set: v => { ppd = v; renderGantt(); },
+  clamp: v => Math.min(Math.max(v, PPD_MIN), PPD_MAX),
+  offX: NAME_W, vertical: false
+});
+
+// 依赖关系图：整体缩放，最小 0.3x，最大 3x
+bindPinch($("depScroll"), {
+  get: () => depScale,
+  set: v => { depScale = v; renderDep(); },
+  clamp: v => Math.min(Math.max(v, DEP_MIN), DEP_MAX),
+  vertical: true
+});
 
 /* ==================== 甘特图导出 PNG ==================== */
 function exportGanttPNG(){
