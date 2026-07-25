@@ -498,13 +498,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 </script>
 <script>
 /* ==================== 部署配置（部署时注入，留空=单机模式） ==================== */
-const CONFIG = {
-  PASSWORD: 'HKexpo2026',
-  OWNER: 'aquairas-chen',
-  REPO: 'team-tracker',
-  FB_REPO: 'team-tracker-feedback',
-  FB_TOKEN: 'gh' + 'p_TVQJ3qeooZAlEb6DjmVPwNcXB4lCCD18NLKk'
-};
+const CONFIG = { owner: "aquairas-chen", repo: "team-tracker", apiUrl: "https://api.github.com/repos/aquairas-chen/team-tracker/contents/data.enc", dataUrl: "https://aquairas-chen.github.io/team-tracker/data.enc", fbApiUrl: "https://api.github.com/repos/aquairas-chen/team-tracker-feedback/contents" };
 
 /* ==================== 内置初始数据（部署时会被清空，数据只存在加密文件里） ==================== */
 const DEFAULT_DB = null;
@@ -1442,7 +1436,7 @@ function renderMine(){
     html = '<div class="rem-tip" style="padding-top:30px;">先点右上角「更换身份」选择你的名字，<br>这里会汇总你的任务和你处置过的记录</div>';
   } else {
     // 我归属的任务
-    const mine = DB.tasks.filter(t => (t.owner || "").indexOf(me.name) >= 0 || me.name.indexOf(t.owner || " ") >= 0);
+    const mine = DB.tasks.filter(t => (t.owner || "").indexOf(me.name) >= 0 || me.name.indexOf(t.owner || "\0") >= 0);
     html += '<div class="sec-h">📌 我的任务（' + mine.length + '）</div>';
     if (!mine.length) html += '<div style="font-size:12px;color:#9AA7B5;padding:4px 2px;">没有归属给「' + esc(me.name) + '」的任务</div>';
     mine.forEach(t => {
