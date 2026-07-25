@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="format-detection" content="telephone=no">
 <meta name="theme-color" content="#1E3A5F">
+<link rel="preconnect" href="https://api.github.com">
+<link rel="dns-prefetch" href="https://api.github.com">
 <title>团队进度追踪</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -625,6 +627,13 @@ function groupColor(g){
 /* ==================== 远程同步 ==================== */
 let lastSyncAt = 0;
 async function fetchRemoteBlob(){
+  // 优先走 Pages CDN（同源、国内更快更稳；no-cache 走 ETag 校验，未变则 304 秒回）
+  if (CONFIG.dataUrl) {
+    try {
+      const rc = await fetch(CONFIG.dataUrl, { cache: "no-cache" });
+      if (rc.ok) return await rc.text();
+    } catch(e){}
+  }
   const r = await fetch(CONFIG.apiUrl, {
     headers: { "Accept": "application/vnd.github.raw+json" }, cache: "no-store"
   });
@@ -639,6 +648,7 @@ async function loadRemote(showErr){
     if (!db || !db.tasks) throw new Error("bad data");
     DB = db; initData();
     lsSet("tpd_pw", pw);
+    lsSet("tpd_blob", blob);
     lastSyncAt = Date.now();
     return true;
   } catch(e) {
@@ -653,6 +663,7 @@ async function checkUpdate(){
     const db = JSON.parse(await decryptText(blob, pw));
     if (db && db.updatedAt > (DB.updatedAt || 0)) {
       DB = db; initData(); renderAll();
+      lsSet("tpd_blob", blob);
       toast("🔄 已收到管理员发布的最新计划");
       lastSyncAt = Date.now();
       markRead().catch(() => {});
@@ -694,6 +705,7 @@ async function publishDB(){
     dirtyCount = 0;
     $("ebPub").textContent = "🚀 发布";
     try { localStorage.removeItem("tpd_draft"); } catch(e){}
+    lsSet("tpd_blob", blob);
     lastSyncAt = Date.now();
     // 自动保存版本快照（尽力而为，不影响发布结果）
     if (DB.fbToken && CONFIG.fbApiUrl) {
@@ -2533,9 +2545,11 @@ $("expOvl").addEventListener("click", e => { if (e.target === $("expOvl")) $("ex
 /* ==================== 启动 ==================== */
 async function afterUnlock(){
   FB_ON = !!(CONFIG.fbApiUrl && DB.fbToken);
-  if (FB_ON) await loadFeedback();
-  if (FB_ON && !me.id) openMeModal();
   startApp();
+  if (FB_ON) {
+    if (!me.id) openMeModal();
+    loadFeedback().then(() => renderAll()).catch(() => {});
+  }
   markRead().catch(() => {});
 }
 async function boot(){
@@ -2543,6 +2557,18 @@ async function boot(){
     // 远程模式：需要访问密码解密数据
     if (pw) {
       $("lockInput").value = "";
+      // 先用本机缓存的加密数据立即渲染（秒开，弱网/离线也能看），再后台静默校验最新版
+      const cached = lsGet("tpd_blob");
+      if (cached) {
+        try {
+          const cdb = JSON.parse(await decryptText(cached, pw));
+          if (cdb && cdb.tasks) {
+            DB = cdb; initData(); afterUnlock();
+            setTimeout(checkUpdate, 1200);
+            return;
+          }
+        } catch(e) { lsSet("tpd_blob", ""); }
+      }
       const ok = await loadRemote(false);
       if (ok) { afterUnlock(); return; }
     }
