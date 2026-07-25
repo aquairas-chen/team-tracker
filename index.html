@@ -214,6 +214,41 @@
   .g-axiscorner { position: sticky; left: 0; bottom: 0; z-index: 7; background: #F8FAFC; border-top: 1px solid #E2E8F0; border-right: 1px solid #E2E8F0; }
   .ax { position: absolute; top: 6px; font-size: 10px; font-weight: 600; color: #55606E; white-space: nowrap; }
 
+  /* ===== v4: 基线 / 自动进度 / 拖拽 / 动态 / 评论 / 优先级 ===== */
+  .g-base { position: absolute; height: 20px; border-radius: 5px; top: 9px; border: 1.5px dashed #94A3B8; background: rgba(148,163,184,.08); pointer-events: none; z-index: 1; }
+  .g-bar { z-index: 2; }
+  .g-bar .autoext { position: absolute; top: 0; bottom: 0; opacity: .38; border-radius: 0 5px 5px 0; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.35) 0 4px, transparent 4px 8px); pointer-events: none; }
+  body.editmode .g-bar { cursor: grab; touch-action: none; }
+  body.editmode .g-bar:active { cursor: grabbing; }
+  .prio { font-size: 9.5px; font-weight: 800; padding: 1px 6px; border-radius: 8px; margin-right: 5px; }
+  .p-P0 { background: #FFF5F5; color: #C53030; border: 1px solid #FEB2B2; }
+  .p-P1 { background: #EBF8FF; color: #2B6CB0; border: 1px solid #BEE3F8; }
+  .p-P2 { background: #EDF2F7; color: #718096; border: 1px solid #E2E8F0; }
+  .sec-h { font-size: 12px; font-weight: 800; color: #4A5568; margin: 16px 0 8px; display: flex; align-items: center; gap: 6px; }
+  .act-item { display: flex; gap: 8px; font-size: 11.5px; color: #4A5568; padding: 5px 0; border-bottom: 1px dashed #EDF2F7; line-height: 1.55; }
+  .act-item .who { font-weight: 800; color: #2D3748; white-space: nowrap; }
+  .act-item .when { margin-left: auto; font-size: 10px; color: #9AA7B5; white-space: nowrap; padding-left: 8px; }
+  .cmt-item { background: #F7FAFC; border-radius: 10px; padding: 8px 11px; margin-bottom: 7px; font-size: 12px; line-height: 1.6; }
+  .cmt-item .who { font-weight: 800; color: #1E3A5F; }
+  .cmt-item .when { font-size: 10px; color: #9AA7B5; margin-left: 6px; }
+  .cmt-item .txt { margin-top: 3px; color: #2D3748; word-break: break-word; }
+  .cmt-att { display: inline-block; margin-top: 6px; font-size: 11px; font-weight: 700; color: #2B6CB0; background: #EBF8FF; border-radius: 8px; padding: 5px 9px; }
+  .cmt-att img { display: block; max-width: 100%; max-height: 180px; border-radius: 8px; margin-top: 4px; }
+  .cmt-box { display: flex; gap: 7px; margin-top: 8px; align-items: center; }
+  .cmt-box input[type=text] { flex: 1; font-size: 13px; padding: 9px 11px; border: 1.5px solid #D9E2EC; border-radius: 9px; outline: none; }
+  .cmt-box .icbtn { flex: 0 0 auto; font-size: 16px; width: 38px; height: 38px; border-radius: 9px; background: #EDF2F7; }
+  .cmt-box .sendbtn { flex: 0 0 auto; font-size: 12.5px; font-weight: 800; color: #fff; background: #1E3A5F; border-radius: 9px; padding: 10px 14px; }
+  .att-prev { font-size: 11px; color: #2B6CB0; font-weight: 700; margin-top: 6px; }
+  .reply-line { background: #F0FFF4; border: 1px solid #C6F6D5; border-radius: 8px; padding: 7px 10px; font-size: 11.5px; color: #276749; margin-top: 6px; }
+  .mine-id { background: linear-gradient(135deg, #16283F, #2B6CB0); color: #fff; border-radius: 14px; padding: 14px 16px; display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .mine-id .nm { font-size: 16px; font-weight: 800; }
+  .mine-id .sw { margin-left: auto; font-size: 11.5px; font-weight: 700; background: rgba(255,255,255,.18); padding: 5px 11px; border-radius: 14px; }
+  .set-row { display: flex; align-items: center; gap: 10px; padding: 12px 2px; border-bottom: 1px solid #F0F4F8; font-size: 13px; }
+  .set-row .lab { flex: 1; font-weight: 700; }
+  .set-row .sub { font-size: 10.5px; color: #9AA7B5; font-weight: 400; margin-top: 2px; }
+  .snap-row { display: flex; align-items: center; gap: 8px; padding: 8px 2px; border-bottom: 1px dashed #EDF2F7; font-size: 12px; }
+  .snap-row .rb { margin-left: auto; font-size: 11px; font-weight: 800; color: #DD6B20; }
+
   /* ==================== iPad（≥768px） ==================== */
   @media (min-width: 768px) {
     html { font-size: 16px; }
@@ -300,6 +335,7 @@
     <button class="tab" data-v="dep">依赖图</button>
     <button class="tab" data-v="list">任务列表</button>
     <button class="tab" data-v="ms">里程碑</button>
+    <button class="tab" data-v="mine">我的</button>
     <button class="tab" data-v="remind">提醒<span class="tabdot" id="tabDot"></span></button>
   </nav>
 </header>
@@ -310,6 +346,7 @@
       <button class="tbtn" id="zoomOut">－</button>
       <button class="tbtn" id="zoomIn">＋</button>
       <button class="tbtn on" id="toggleDeps">依赖连线</button>
+      <button class="tbtn" id="toggleBase">基线对比</button>
       <button class="tbtn" id="goToday">回到今天</button>
       <button class="tbtn" id="btnExport">📸 导出PNG</button>
       <span style="font-size:11px;color:#8A97A8;" id="ganttTip">点按任务条查看详情</span>
@@ -340,6 +377,11 @@
     <div class="sync-note" id="syncNote"></div>
   </section>
 
+  <section class="view" id="v-mine">
+    <div class="mine-id"><div class="nm" id="mineName">未选择身份</div><button class="sw" id="mineSwitch">更换身份</button></div>
+    <div id="mineBody"></div>
+  </section>
+
   <section class="view" id="v-remind">
     <div id="remindList"></div>
   </section>
@@ -350,6 +392,7 @@
   <button class="ebtn" id="ebAddMs">➕ 里程碑</button>
   <button class="ebtn" id="ebMembers">👥 成员</button>
   <button class="ebtn" id="ebPw">🔑 密码</button>
+  <button class="ebtn" id="ebSettings">⚙️ 设置</button>
   <button class="ebtn pub" id="ebPub">🚀 发布</button>
   <button class="ebtn exit" id="ebExit">退出</button>
 </div>
@@ -507,9 +550,11 @@ function getP(t){
 }
 function setProgress(id, v){
   v = Math.max(0, Math.min(100, Math.round(v)));
+  const from = getP(TMAP[id]);
   if (isRemote()) {
     if (!editMode) return;
     TMAP[id].p = v; markDirty();
+    if (from !== v) logAct(id, "progress", { from: from, to: v });
   } else {
     localP[id] = v; lsSet("tpd_local_p", JSON.stringify(localP));
   }
@@ -619,6 +664,13 @@ async function publishDB(){
     $("ebPub").textContent = "🚀 发布";
     try { localStorage.removeItem("tpd_draft"); } catch(e){}
     lastSyncAt = Date.now();
+    // 自动保存版本快照（尽力而为，不影响发布结果）
+    if (DB.fbToken && CONFIG.fbApiUrl) {
+      try {
+        await fbPutFile("snap/v" + DB.updatedAt + ".enc", btoa(unescape(encodeURIComponent(blob))));
+        pruneSnaps();
+      } catch(e){}
+    }
     toast("✅ 已发布！成员 1-3 分钟内自动收到");
     return true;
   } catch(e) {
@@ -630,8 +682,10 @@ async function publishDB(){
 
 /* ==================== 成员动态层（反馈仓库：完成标记 / 预警 / 已读回执） ==================== */
 let FB_ON = false;
-let actions = {};                                  // memberId -> {name, completions:{tid:ts}, alerts:[], reads:{ver:ts}, active:ts}
-let control = { resolvedAlerts: [], cleared: {} }; // 管理员控制：已处理预警 / 撤销的完成标记
+let actions = {};                                  // memberId -> {name, completions:{tid:ts}, started:{}, alerts:[], reads:{ver:ts}, active:ts}
+let control = { resolvedAlerts: [], cleared: {}, alertReplies: {} }; // 管理员控制：已处理预警 / 撤销的完成标记 / 预警回复
+let activity = { events: [] };                     // 任务动态留痕（activity.json）
+let comments = { items: [] };                      // 任务评论（comments.json）
 let mySha = null, controlSha = null;
 let me = { id: lsGet("tpd_mid") || "", name: lsGet("tpd_mname") || "" };
 
@@ -646,16 +700,86 @@ async function loadFeedback(){
     const r = await fetch(CONFIG.fbApiUrl, { headers: fbHead(false), cache: "no-store" });
     if (!r.ok) return;
     const files = await r.json();
-    await Promise.all(files.filter(f => /^m_.*\.json$/.test(f.name) || f.name === "control.json").map(async f => {
+    await Promise.all(files.filter(f => /^m_.*\.json$/.test(f.name) || f.name === "control.json" || f.name === "activity.json" || f.name === "comments.json").map(async f => {
       const rr = await fetch(CONFIG.fbApiUrl + "/" + f.name, { headers: fbHead(true), cache: "no-store" });
       if (!rr.ok) return;
       try {
         const j = JSON.parse(await rr.text());
-        if (f.name === "control.json") { control = Object.assign({ resolvedAlerts: [], cleared: {} }, j); controlSha = f.sha; }
+        if (f.name === "control.json") { control = Object.assign({ resolvedAlerts: [], cleared: {}, alertReplies: {} }, j); controlSha = f.sha; }
+        else if (f.name === "activity.json") activity = Object.assign({ events: [] }, j);
+        else if (f.name === "comments.json") comments = Object.assign({ items: [] }, j);
         else actions[f.name.replace(/^m_|\.json$/g, "")] = j;
       } catch(e){}
     }));
   } catch(e){}
+}
+// 读-改-写 JSON 文件（带合并重试，防止并发覆盖他人数据）
+async function fbMergeJson(path, def, mutate){
+  for (let i = 0; i < 3; i++) {
+    let sha = null, obj = JSON.parse(JSON.stringify(def));
+    const g = await fetch(CONFIG.fbApiUrl + "/" + path, { headers: fbHead(false), cache: "no-store" });
+    if (g.ok) {
+      const j = await g.json();
+      sha = j.sha;
+      try { obj = JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g, ""))))); } catch(e){}
+    } else if (g.status !== 404) { throw new Error("HTTP " + g.status); }
+    mutate(obj);
+    const body = { message: "update " + path, content: btoa(unescape(encodeURIComponent(JSON.stringify(obj)))) };
+    if (sha) body.sha = sha;
+    const r = await fetch(CONFIG.fbApiUrl + "/" + path, {
+      method: "PUT", headers: Object.assign({ "Content-Type": "application/json" }, fbHead(false)),
+      body: JSON.stringify(body)
+    });
+    if (r.ok) return obj;
+    if (r.status === 409 || r.status === 422) continue;   // 冲突：重新拉取合并再试
+    throw new Error("HTTP " + r.status);
+  }
+  throw new Error("写入冲突，请重试");
+}
+// 上传二进制附件（base64），返回路径
+async function fbPutFile(path, b64){
+  const body = { message: "attachment", content: b64 };
+  const g = await fetch(CONFIG.fbApiUrl + "/" + path, { headers: fbHead(false), cache: "no-store" });
+  if (g.ok) body.sha = (await g.json()).sha;
+  const r = await fetch(CONFIG.fbApiUrl + "/" + path, {
+    method: "PUT", headers: Object.assign({ "Content-Type": "application/json" }, fbHead(false)),
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error("附件上传失败 HTTP " + r.status);
+  return path;
+}
+async function fbFetchBlob(path){
+  const r = await fetch(CONFIG.fbApiUrl + "/" + path, { headers: fbHead(true), cache: "no-store" });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return await r.blob();
+}
+// 任务动态留痕
+async function logAct(taskId, type, extra){
+  if (!FB_ON || !DB) return;
+  const ev = Object.assign({ id: "e" + Date.now() + Math.floor(Math.random() * 999), taskId: taskId,
+    actor: editMode ? "管理员" : (me.name || "访客"), type: type, at: Date.now() }, extra || {});
+  activity.events.push(ev);
+  try {
+    activity = await fbMergeJson("activity.json", { events: [] }, j => {
+      j.events = (j.events || []).filter(x => x.id !== ev.id).concat(ev).slice(-300);
+    });
+  } catch(e){}
+}
+// 发表评论（可带附件）
+async function postComment(taskId, text, att){
+  if (!FB_ON) { toast("当前为单机模式，无法评论"); return false; }
+  const actor = editMode ? "管理员" : me.name;
+  if (!editMode && !me.id) { toast("请先选择你的名字"); openMeModal(); return false; }
+  const c = { id: "c" + Date.now() + Math.floor(Math.random() * 999), taskId: taskId, actor: actor, text: text, at: Date.now() };
+  if (att) c.att = att;
+  comments.items.push(c);
+  try {
+    comments = await fbMergeJson("comments.json", { items: [] }, j => {
+      j.items = (j.items || []).filter(x => x.id !== c.id).concat(c).slice(-300);
+    });
+    logAct(taskId, "comment", { text: text.slice(0, 30) });
+    return true;
+  } catch(e){ toast("评论同步失败：" + e.message); return false; }
 }
 async function fbPut(path, obj, sha){
   const body = { message: "member update", content: btoa(unescape(encodeURIComponent(JSON.stringify(obj)))) };
@@ -696,7 +820,23 @@ function completedBy(tid){
   return out;
 }
 function isDoneT(t){ return getP(t) >= 100 || !!completedBy(t.id); }
-function effP(t){ return isDoneT(t) ? 100 : getP(t); }
+// 时间基准进度：按当前日期在任务起止间的位置线性推算（0-99，未开始为0）
+function timeP(t){
+  const s = pd(t.start), e = pd(t.end), n = today();
+  if (n <= s) return 0;
+  const total = Math.max(Math.round((e - s) / DAY) + 1, 1);
+  const gone = Math.round((n - s) / DAY) + 1;
+  return Math.max(0, Math.min(99, Math.round(gone / total * 100)));
+}
+// 有效进度：完成=100；已标记「进行中」或手动>0 的任务，进度随时间自动爬升（手动值不会被拉低）
+function effP(t){
+  if (isDoneT(t)) return 100;
+  const manual = getP(t);
+  if (DB && DB.autoP === false) return manual;
+  if (manual > 0 || startedBy(t.id)) return Math.max(manual, timeP(t));
+  return 0;
+}
+function isAutoP(t){ const m = getP(t); return !isDoneT(t) && effP(t) > m; }  // 当前显示值是否含自动爬升部分
 function taskAlerts(tid){
   let out = [];
   Object.keys(actions).forEach(mid => {
@@ -731,6 +871,7 @@ async function memberToggleStart(tid){
   else mine.started[tid] = Date.now();
   actions[me.id] = mine;
   renderAll();
+  logAct(tid, mine.started[tid] ? "start" : "unstart");
   try { await saveMyActions(); toast(mine.started[tid] ? "🔄 已标记进行中，提醒角标已消除" : "已撤销进行中标记"); }
   catch(e){ toast("同步失败：" + e.message); }
 }
@@ -741,6 +882,7 @@ async function memberToggleDone(tid){
   else { mine.completions = mine.completions || {}; mine.completions[tid] = Date.now(); }
   actions[me.id] = mine;
   renderAll();
+  logAct(tid, mine.completions[tid] ? "done" : "undone");
   try { await saveMyActions(); toast(mine.completions[tid] ? "✅ 已标记完成，全团队可见" : "已撤销完成标记"); }
   catch(e){ toast("同步失败：" + e.message); }
 }
@@ -751,19 +893,29 @@ async function memberAlert(tid, reason){
   mine.alerts.push({ id: "a" + Date.now(), taskId: tid, name: me.name, reason: reason, ts: Date.now() });
   actions[me.id] = mine;
   renderAll();
+  logAct(tid, "alert", { text: reason.slice(0, 40) });
   try { await saveMyActions(); toast("⚠️ 预警已发出，管理员和全团队可见"); }
   catch(e){ toast("同步失败：" + e.message); }
 }
-async function ownerResolveAlert(aid){
+async function ownerResolveAlert(aid, reply){
   control.resolvedAlerts = control.resolvedAlerts || [];
-  control.resolvedAlerts.push(aid);
+  if (control.resolvedAlerts.indexOf(aid) < 0) control.resolvedAlerts.push(aid);
+  if (reply) {
+    control.alertReplies = control.alertReplies || {};
+    control.alertReplies[aid] = { text: reply, at: Date.now() };
+  }
   renderAll();
-  try { await saveControl(); toast("已标记为已处理"); } catch(e){ toast("同步失败：" + e.message); }
+  // 找到该预警所属任务用于留痕
+  let tid = null;
+  Object.keys(actions).forEach(mid => { ((actions[mid] && actions[mid].alerts) || []).forEach(a => { if (a.id === aid) tid = a.taskId; }); });
+  if (tid) logAct(tid, "resolve", { text: reply || "" });
+  try { await saveControl(); toast("已标记为已处理" + (reply ? "，成员可见你的回复" : "")); } catch(e){ toast("同步失败：" + e.message); }
 }
 async function ownerClearCompletion(tid){
   control.cleared = control.cleared || {};
   control.cleared[tid] = Date.now();
   renderAll();
+  logAct(tid, "undone", { text: "管理员撤销完成标记" });
   try { await saveControl(); toast("已撤销成员完成标记"); } catch(e){ toast("同步失败：" + e.message); }
 }
 
@@ -851,7 +1003,7 @@ function renderHeader(){
 // 响应式：手机 / iPad / 笔记本与桌面
 const IS_PAD = window.innerWidth >= 768, IS_PC = window.innerWidth >= 1200;
 let ppd = window.innerWidth < 600 ? 9 : IS_PC ? 18 : 14;
-let showDeps = true;
+let showDeps = true, showBase = false;
 const ROW_H = IS_PAD ? 46 : 38, HEAD_H = 46, AXIS_H = 26;
 const BAR_H = IS_PAD ? 26 : 20, BAR_TOP = Math.round((ROW_H - BAR_H) / 2);
 const NAME_W = window.innerWidth < 600 ? 104 : IS_PC ? 200 : 150;
@@ -931,12 +1083,27 @@ function renderGantt(){
     const dur = Math.round((pd(t.end) - pd(t.start))/DAY) + 1;
     const w = Math.max(dur * ppd, 8);
     const y = i * ROW_H;
-    const p = effP(t);
+    const p = effP(t), mp = getP(t);
     const c = groupColor(t.group);
     ganttPos[t.id] = { x: NAME_W + x, y: HEAD_H + y, w: w };
+    // 基线幽灵条（虚线框 = 原计划位置）
+    if (showBase && DB.baseline && DB.baseline.tasks && DB.baseline.tasks[t.id]) {
+      const b = DB.baseline.tasks[t.id];
+      const bx = Math.round((pd(b.start) - MIN_DATE)/DAY) * ppd;
+      const bw = Math.max((Math.round((pd(b.end) - pd(b.start))/DAY) + 1) * ppd, 8);
+      html += '<div class="g-base" style="left:' + bx + 'px;top:' + (y+BAR_TOP+2) + 'px;height:' + (BAR_H-4) + 'px;width:' + bw + 'px;"></div>';
+    }
+    // 进度填充：实色 = 手动进度；斜纹延伸 = 时间基准自动爬升部分
+    let fillHtml;
+    if (!isDoneT(t) && p > mp) {
+      fillHtml = '<div class="fill" style="width:' + mp + '%;background:' + c + ';"></div>' +
+        '<div class="autoext" style="left:' + mp + '%;width:' + (p - mp) + '%;background-color:' + c + ';"></div>';
+    } else {
+      fillHtml = '<div class="fill" style="width:' + p + '%;background:' + c + ';"></div>';
+    }
     html += '<div class="g-bar' + (isDoneT(t) ? " done" : "") + (isLate(t) ? " late" : "") + '" data-tid="' + t.id + '"' +
       ' style="left:' + x + 'px;top:' + (y+BAR_TOP) + 'px;height:' + BAR_H + 'px;width:' + w + 'px;background:' + c + '55;border:1px solid ' + c + ';">' +
-      '<div class="fill" style="width:' + p + '%;background:' + c + ';"></div></div>';
+      fillHtml + '</div>';
   });
 
   DB.milestones.forEach(m => {
@@ -984,13 +1151,61 @@ function renderGantt(){
 
   inner.innerHTML = html;
   inner.querySelectorAll(".g-bar").forEach(el => {
-    el.addEventListener("click", e => { e.stopPropagation(); openSheet(el.dataset.tid); });
+    el.addEventListener("click", e => {
+      if (el._suppressClick) { el._suppressClick = false; return; }
+      e.stopPropagation(); openSheet(el.dataset.tid);
+    });
+    bindBarDrag(el, el.dataset.tid);
   });
 
   let lg = "";
   Object.keys(DB.groups).forEach(g => { lg += '<span class="lg"><i style="background:' + DB.groups[g] + ';"></i>' + esc(g) + "</span>"; });
   $("legend").innerHTML = lg;
-  $("ganttTip").textContent = (canEdit() ? "点按任务条更新进度" : "点按任务条查看详情") + (window.matchMedia("(pointer: coarse)").matches ? "，双指可缩放" : "，滚轮可缩放");
+  $("ganttTip").textContent = (canEdit() ? "点按任务条更新进度，拖动任务条可改期" : "点按任务条查看详情") + (window.matchMedia("(pointer: coarse)").matches ? "，双指可缩放" : "，滚轮可缩放");
+}
+
+/* ---- 甘特条拖拽改期（管理/单机模式）：中间拖动=平移，两端拖动=改起止 ---- */
+function shiftDate(s, dd){
+  const d = new Date(pd(s).getTime() + dd * DAY);
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+function bindBarDrag(el, tid){
+  const t = TMAP[tid]; if (!t) return;
+  let st = null;
+  el.addEventListener("pointerdown", e => {
+    if (!canEdit()) return;
+    e.preventDefault(); e.stopPropagation();
+    const rect = el.getBoundingClientRect();
+    const zone = e.clientX - rect.left;
+    const mode = zone < 10 ? "l" : (zone > rect.width - 10 && rect.width > 26 ? "r" : "m");
+    st = { x0: e.clientX, mode: mode, s0: t.start, e0: t.end, moved: false };
+    try { el.setPointerCapture(e.pointerId); } catch(err){}
+  });
+  el.addEventListener("pointermove", e => {
+    if (!st) return;
+    const dd = Math.round((e.clientX - st.x0) / ppd);
+    if (!dd) return;
+    let ns = st.s0, ne = st.e0;
+    if (st.mode === "m") { ns = shiftDate(st.s0, dd); ne = shiftDate(st.e0, dd); }
+    else if (st.mode === "l") { ns = shiftDate(st.s0, dd); if (pd(ns) > pd(st.e0)) ns = st.e0; }
+    else { ne = shiftDate(st.e0, dd); if (pd(ne) < pd(st.s0)) ne = st.s0; }
+    st.moved = true; st.ns = ns; st.ne = ne;
+    const x = Math.round((pd(ns) - MIN_DATE)/DAY) * ppd;
+    const w = Math.max((Math.round((pd(ne) - pd(ns))/DAY) + 1) * ppd, 8);
+    el.style.left = x + "px"; el.style.width = w + "px";
+  });
+  el.addEventListener("pointerup", e => {
+    if (!st) return;
+    const moved = st.moved, ns = st.ns, ne = st.ne; st = null;
+    if (moved && ns) {
+      t.start = ns; t.end = ne;
+      logAct(tid, "plan", { text: "拖拽改期为 " + ns.slice(5).replace("-","/") + " → " + ne.slice(5).replace("-","/") });
+      markDirty(); initData(); afterChange();
+      el._suppressClick = true;
+      toast("已调整日期，点「🚀 发布」同步给全团队");
+    }
+  });
+  el.addEventListener("pointercancel", () => { if (st) { st = null; renderGantt(); } });
 }
 
 /* ==================== 依赖关系图 ==================== */
@@ -1121,7 +1336,9 @@ function renderList(){
   const groupOrder = Object.keys(DB.groups);
   DB.tasks.map(t => t.group).forEach(g => { if (groupOrder.indexOf(g) < 0) groupOrder.push(g); });
   groupOrder.forEach(g => {
-    const list = DB.tasks.filter(t => t.group === g && (filter === "all" || taskStatus(t) === filter));
+    const PRIO_ORD = { P0: 0, P1: 1, P2: 2 };
+    const list = DB.tasks.filter(t => t.group === g && (filter === "all" || taskStatus(t) === filter))
+      .sort((a, b) => (PRIO_ORD[a.prio || "P1"] - PRIO_ORD[b.prio || "P1"]) || (pd(a.start) - pd(b.start)));
     if (!list.length) return;
     html += '<div class="grp-h"><i style="background:' + groupColor(g) + ';"></i>' + esc(g) + "</div>";
     list.forEach(t => {
@@ -1133,8 +1350,9 @@ function renderList(){
       else if (st === "doing") badge = '<span class="badge b-now">进行中</span>';
       if (al > 0) badge += '<span class="badge b-alert">⚠️ 预警 ' + al + "</span>";
       html += '<div class="tcard" style="border-left-color:' + groupColor(g) + ';" data-tid="' + t.id + '">' +
-        '<div class="r1"><div class="nm' + (st === "done" ? " done" : "") + '">' + esc(t.name) + "</div>" + badge + "</div>" +
+        '<div class="r1">' + prioBadge(t) + '<div class="nm' + (st === "done" ? " done" : "") + '">' + esc(t.name) + "</div>" + badge + "</div>" +
         '<div class="r2"><span>👤 ' + esc(t.owner) + "</span><span>📅 " + fmtD(pd(t.start)) + " → " + fmtD(pd(t.end)) + "</span>" +
+        (t.est ? "<span>⏱ " + esc(t.est) + " 人日</span>" : "") +
         (t.deps.length ? "<span>⛓ 前置 " + t.deps.length + " 项</span>" : "") + "</div>" +
         '<div class="r3"><input type="range" min="0" max="100" step="5" value="' + p + '" data-tid="' + t.id + '"' + (ro ? " disabled" : "") + '>' +
         '<div class="pv">' + p + "%</div></div></div>";
@@ -1171,22 +1389,106 @@ function renderMs(){
   }
 }
 
-/* ==================== 提醒（未启动任务 + 成员预警） ==================== */
-function stalledTasks(){
+/* ==================== 我的 ==================== */
+function renderMine(){
+  $("mineName").textContent = me.name || "未选择身份";
+  let html = "";
+  if (!me.id) {
+    html = '<div class="rem-tip" style="padding-top:30px;">先点右上角「更换身份」选择你的名字，<br>这里会汇总你的任务和你处置过的记录</div>';
+  } else {
+    // 我归属的任务
+    const mine = DB.tasks.filter(t => (t.owner || "").indexOf(me.name) >= 0 || me.name.indexOf(t.owner || " ") >= 0);
+    html += '<div class="sec-h">📌 我的任务（' + mine.length + '）</div>';
+    if (!mine.length) html += '<div style="font-size:12px;color:#9AA7B5;padding:4px 2px;">没有归属给「' + esc(me.name) + '」的任务</div>';
+    mine.forEach(t => {
+      const st = taskStatus(t);
+      const stTxt = { done: "✅ 已完成", late: "⛔ 已延期", doing: "🔄 进行中", todo: "⏳ 未开始" }[st];
+      html += '<div class="tcard" style="border-left-color:' + groupColor(t.group) + ';" data-tid="' + t.id + '">' +
+        '<div class="r1">' + prioBadge(t) + '<div class="nm' + (st === "done" ? " done" : "") + '">' + esc(t.name) + "</div>" +
+        '<span class="badge ' + (st === "done" ? "b-done" : st === "late" ? "b-late" : st === "doing" ? "b-now" : "") + '">' + stTxt + "</span></div>" +
+        '<div class="r2"><span>📅 ' + fmtD(pd(t.start)) + " → " + fmtD(pd(t.end)) + "</span><span>进度 " + effP(t) + "%</span></div></div>";
+    });
+    // 我处置过的任务
+    const a = actions[me.id] || {};
+    const acts = [];
+    Object.keys(a.completions || {}).forEach(tid => { if (TMAP[tid]) acts.push({ tid: tid, ts: a.completions[tid], label: "✅ 标记完成" }); });
+    Object.keys(a.started || {}).forEach(tid => { if (TMAP[tid]) acts.push({ tid: tid, ts: a.started[tid], label: "🔄 标记进行中" }); });
+    (a.alerts || []).forEach(al => { if (TMAP[al.taskId]) acts.push({ tid: al.taskId, ts: al.ts, label: "⚠️ 发出预警" }); });
+    acts.sort((x, y) => y.ts - x.ts);
+    html += '<div class="sec-h">🖐 我处置过的（' + acts.length + '）</div>';
+    if (!acts.length) html += '<div style="font-size:12px;color:#9AA7B5;padding:4px 2px;">还没有操作记录。点任务条可以标记进行中 / 完成 / 预警</div>';
+    acts.slice(0, 15).forEach(x => {
+      html += '<div class="act-item" data-tid="' + x.tid + '" style="cursor:pointer;"><span class="who">' + x.label + "</span><span>" +
+        esc(TMAP[x.tid].name) + '</span><span class="when">' + fmtTs(x.ts) + "</span></div>";
+    });
+    // 我的动态（留痕）
+    const evs = activity.events.filter(e => e.actor === me.name).sort((x, y) => y.at - x.at).slice(0, 15);
+    html += '<div class="sec-h">🕐 我的动态（' + evs.length + '）</div>';
+    if (!evs.length) html += '<div style="font-size:12px;color:#9AA7B5;padding:4px 2px;">暂无动态</div>';
+    evs.forEach(e => {
+      html += '<div class="act-item"><span class="who">' + (ACT_LABEL[e.type] || e.type) + "</span><span>" +
+        esc(TMAP[e.taskId] ? TMAP[e.taskId].name : e.taskId) + (actText(e) ? " · " + esc(actText(e)) : "") +
+        '</span><span class="when">' + fmtTs(e.at) + "</span></div>";
+    });
+  }
+  $("mineBody").innerHTML = html;
+  $("mineBody").querySelectorAll("[data-tid]").forEach(el => {
+    el.addEventListener("click", () => openSheet(el.dataset.tid));
+  });
+}
+$("mineSwitch").addEventListener("click", openMeModal);
+
+/* ==================== 提醒（未启动 / 临期 / 延期 / 停滞 + 成员预警） ==================== */
+function stalledTasks(){   // 过了开始日期仍未启动
   return DB.tasks.filter(t => today() > pd(t.start) && !isDoneT(t) && effP(t) === 0 && !startedBy(t.id));
 }
-function renderRemind(){
-  const stalled = stalledTasks();
-  const alerts = FB_ON ? allOpenAlerts() : [];
-  let html = '<div class="rem-h">🔴 未启动提醒（' + stalled.length + '）</div>';
-  if (!stalled.length) html += '<div class="rem-ok">👍 没有「过了开始日期仍未启动」的任务</div>';
-  stalled.forEach(t => {
-    const days = Math.round((today() - pd(t.start)) / DAY);
-    html += '<div class="rem-card" data-tid="' + t.id + '">' +
-      '<div class="nm">' + esc(t.name) + "</div>" +
-      '<div class="why">已过开始日期 ' + days + ' 天，进度仍是 0%</div>' +
-      '<div class="mt">👤 ' + esc(t.owner) + " · 应开始 " + fmtD(pd(t.start)) + " · 截止 " + fmtD(pd(t.end)) + "</div></div>";
+function upcomingTasks(){  // 3 天内截止但进度不足 50%
+  return DB.tasks.filter(t => {
+    const left = Math.round((pd(t.end) - today()) / DAY);
+    return left >= 0 && left <= 3 && !isDoneT(t) && effP(t) < 50;
   });
+}
+function overdueTasks(){   // 已过截止仍未完成
+  return DB.tasks.filter(t => today() > pd(t.end) && !isDoneT(t));
+}
+function staleTasks(){     // 进行中但 3 天没有进度动态
+  const PROG_TYPES = ["progress", "start", "done", "comment"];
+  return DB.tasks.filter(t => {
+    if (isDoneT(t) || today() > pd(t.end)) return false;
+    if (!startedBy(t.id) && getP(t) === 0) return false;
+    const evs = activity.events.filter(e => e.taskId === t.id && PROG_TYPES.indexOf(e.type) >= 0);
+    if (!evs.length) return false;
+    const last = Math.max.apply(null, evs.map(e => e.at));
+    return Date.now() - last > 3 * DAY;
+  });
+}
+function renderRemind(){
+  const stalled = stalledTasks(), upcoming = upcomingTasks(), overdue = overdueTasks(), stale = staleTasks();
+  const alerts = FB_ON ? allOpenAlerts() : [];
+  let html = "";
+  function cards(list, whyFn){
+    let h = "";
+    list.forEach(t => {
+      html += "";  // noop
+      h += '<div class="rem-card" data-tid="' + t.id + '">' +
+        '<div class="nm">' + esc(t.name) + "</div>" +
+        '<div class="why">' + whyFn(t) + "</div>" +
+        '<div class="mt">👤 ' + esc(t.owner) + " · " + fmtD(pd(t.start)) + " → " + fmtD(pd(t.end)) + " · 当前 " + effP(t) + "%</div></div>";
+    });
+    return h;
+  }
+  html += '<div class="rem-h">🔴 未启动（' + stalled.length + '）</div>';
+  html += stalled.length ? cards(stalled, t => "已过开始日期 " + Math.round((today() - pd(t.start)) / DAY) + " 天，进度仍是 0%")
+    : '<div class="rem-ok">👍 没有「过了开始日期仍未启动」的任务</div>';
+  html += '<div class="rem-h" style="color:#B7791F;">🟠 临期 · 3天内截止（' + upcoming.length + '）</div>';
+  html += upcoming.length ? cards(upcoming, t => "还剩 " + Math.max(Math.round((pd(t.end) - today()) / DAY), 0) + " 天截止，进度仅 " + effP(t) + "%")
+    : '<div class="rem-ok" style="color:#9AA7B5;">暂无临期任务</div>';
+  html += '<div class="rem-h">⛔ 已延期（' + overdue.length + '）</div>';
+  html += overdue.length ? cards(overdue, t => "已过截止 " + Math.round((today() - pd(t.end)) / DAY) + " 天，进度 " + effP(t) + "%")
+    : '<div class="rem-ok" style="color:#9AA7B5;">暂无延期任务</div>';
+  html += '<div class="rem-h" style="color:#6B46C1;">🟣 进度停滞 · 3天无动态（' + stale.length + '）</div>';
+  html += stale.length ? cards(stale, () => "进行中，但已超过 3 天没有进度更新或讨论")
+    : '<div class="rem-ok" style="color:#9AA7B5;">暂无停滞任务</div>';
   if (FB_ON) {
     html += '<div class="rem-h" style="color:#C05621;">⚠️ 成员预警（' + alerts.length + '）</div>';
     if (!alerts.length) html += '<div class="rem-ok" style="color:#9AA7B5;">暂无成员预警</div>';
@@ -1198,14 +1500,14 @@ function renderRemind(){
         '<div class="mt">' + fmtTs(a.ts) + "</div></div>";
     });
   }
-  html += '<div class="rem-tip">消除方式：进度 &gt; 0%、成员标记「🔄 进行中」或「✅ 完成」<br>提醒每天首次打开时弹出一次</div>';
+  html += '<div class="rem-tip">「未启动」消除方式：进度 &gt; 0%、标记「🔄 进行中」或「✅ 完成」<br>临期 / 延期 / 停滞 随进度更新自动消除</div>';
   $("remindList").innerHTML = html;
   $("remindList").querySelectorAll(".rem-card").forEach(c => {
     c.addEventListener("click", () => openSheet(c.dataset.tid));
   });
 }
 function updateRemindBadge(){
-  const n = DB ? stalledTasks().length : 0;
+  const n = DB ? (stalledTasks().length + upcomingTasks().length + overdueTasks().length + staleTasks().length + (FB_ON ? allOpenAlerts().length : 0)) : 0;
   const d = $("tabDot");
   d.textContent = n;
   d.classList.toggle("on", n > 0);
@@ -1213,10 +1515,10 @@ function updateRemindBadge(){
 function dailyRemindPopup(){
   const key = "tpd_remind_last";
   const todayStr = today().toISOString().slice(0, 10);
-  const n = stalledTasks().length;
+  const n = stalledTasks().length + upcomingTasks().length + overdueTasks().length;
   if (n > 0 && lsGet(key) !== todayStr) {
     lsSet(key, todayStr);
-    setTimeout(() => toast("🔴 今日提醒：" + n + " 项任务已过开始日期仍未启动（见「提醒」tab）"), 1200);
+    setTimeout(() => toast("🔴 今日提醒：" + n + " 项任务需要关注（见「提醒」tab）"), 1200);
   }
 }
 
@@ -1227,34 +1529,63 @@ function renderAll(){
   if ($("v-dep").classList.contains("on")) renderDep();
   if ($("v-list").classList.contains("on")) renderList();
   if ($("v-ms").classList.contains("on")) renderMs();
+  if ($("v-mine").classList.contains("on")) renderMine();
   if ($("v-remind").classList.contains("on")) renderRemind();
 }
 function afterChange(){ renderAll(); }
 
 /* ==================== 任务详情 / 编辑抽屉 ==================== */
+const ACT_LABEL = { progress: "调整进度", start: "标记进行中", unstart: "撤销进行中", done: "标记完成", undone: "撤销完成", alert: "发出预警", resolve: "处理预警", comment: "发表评论", plan: "修改计划" };
+function actText(e){ return e.type === "progress" ? ("进度 " + e.from + "% → " + e.to + "%") : (e.text || ""); }
+function prioBadge(t){ const pr = t.prio || "P1"; return '<span class="prio p-' + pr + '">' + pr + "</span>"; }
+function resolvedAlertsOf(tid){
+  let out = [];
+  Object.keys(actions).forEach(mid => {
+    ((actions[mid] && actions[mid].alerts) || []).forEach(a => {
+      if (a.taskId === tid && (control.resolvedAlerts || []).indexOf(a.id) >= 0) out.push(a);
+    });
+  });
+  return out.sort((a, b) => b.ts - a.ts);
+}
+
 function openSheet(tid){
   const t = TMAP[tid]; if (!t) return;
-  const p = getP(t);
+  const p = getP(t), ep = effP(t);
   const depNames = t.deps.filter(d => TMAP[d]).map(d => TMAP[d].name).join("、");
   const succNames = (succMap[tid] || []).map(s => TMAP[s].name).join("、");
-  let h = "<h3>" + esc(t.name) + "</h3>" +
+  let h = "<h3>" + prioBadge(t) + esc(t.name) + "</h3>" +
     '<div class="meta">' + esc(t.group) + " · " + esc(t.owner) + " · " + t.start.slice(5).replace("-","/") + " → " + t.end.slice(5).replace("-","/") +
+    (t.est ? " · 预估 " + t.est + " 人日" : "") +
     (isLate(t) ? ' · <b style="color:#E53E3E">已延期</b>' : "") + "</div>" +
+    (isAutoP(t) ? '<div class="deps">⏱ 手动进度 ' + p + '%，按时间基准自动推进至 <b>' + ep + '%</b>（进行中任务随时间自动爬升，手动改高不会被拉低）</div>' : "") +
     (depNames ? '<div class="deps">⛓ 前置任务：' + esc(depNames) + "</div>" : "") +
     (succNames ? '<div class="deps">➡️ 完成它才能开始：' + esc(succNames) + "</div>" : "");
 
-  // 成员完成署名 + 预警列表（v3）
+  // 基线对比
+  if (DB.baseline && DB.baseline.tasks && DB.baseline.tasks[tid]) {
+    const b = DB.baseline.tasks[tid];
+    const ds = Math.round((pd(t.start) - pd(b.start)) / DAY), de = Math.round((pd(t.end) - pd(b.end)) / DAY);
+    h += '<div class="deps">📏 基线 ' + fmtD(pd(b.start)) + " → " + fmtD(pd(b.end)) + "：" +
+      (ds || de ? ('开始 <b style="color:#C05621">' + (ds > 0 ? "+" : "") + ds + ' 天</b> · 截止 <b style="color:#C05621">' + (de > 0 ? "+" : "") + de + " 天</b>") : "与基线一致 ✅") + "</div>";
+  }
+
+  // 成员完成署名 + 进行中 + 预警（含回复闭环）
   if (FB_ON) {
     const cb = completedBy(tid);
     if (cb) h += '<div class="done-by">✅ <b>' + esc(cb.name) + "</b> 于 " + fmtTs(cb.ts) + " 标记完成</div>";
     const sb = startedBy(tid);
     if (sb && !cb && !isDoneT(t)) h += '<div class="deps">🔄 <b>' + esc(sb.name) + "</b> 于 " + fmtTs(sb.ts) + " 标记进行中</div>";
-    const als = taskAlerts(tid);
-    als.forEach(a => {
+    taskAlerts(tid).forEach(a => {
       h += '<div class="alert-item"><span class="who">⚠️ ' + esc(a.name) + "</span>" +
         '<span class="when"> ' + fmtTs(a.ts) + "</span>" +
-        (editMode ? '<span class="resolve" data-aid="' + a.id + '">标记已处理</span>' : "") +
+        (editMode ? '<span class="resolve" data-aid="' + a.id + '">处理并回复</span>' : "") +
         "<br>" + esc(a.reason) + "</div>";
+    });
+    resolvedAlertsOf(tid).forEach(a => {
+      const rp = (control.alertReplies || {})[a.id];
+      h += '<div class="alert-item" style="opacity:.75;"><span class="who">✔ ' + esc(a.name) + "（已处理）</span>" +
+        '<span class="when"> ' + fmtTs(a.ts) + "</span><br>" + esc(a.reason) +
+        (rp ? '<div class="reply-line">💬 管理员回复：' + esc(rp.text) + " · " + fmtTs(rp.at) + "</div>" : "") + "</div>";
     });
   }
 
@@ -1270,6 +1601,11 @@ function openSheet(tid){
       '<div class="fld-row">' +
       '<div class="fld"><label>开始日期</label><input type="date" id="efStart" value="' + t.start + '"></div>' +
       '<div class="fld"><label>结束日期</label><input type="date" id="efEnd" value="' + t.end + '"></div></div>' +
+      '<div class="fld"><label>优先级 / 预估工时（人日）</label><div class="fld-row">' +
+        '<div class="chipbox" id="efPrio" style="flex:1;">' +
+          ["P0","P1","P2"].map(v => '<button class="cb' + ((t.prio || "P1") === v ? " on" : "") + '" data-v="' + v + '">' + v + "</button>").join("") +
+        '</div>' +
+        '<input type="text" id="efEst" style="flex:0 0 104px;font-size:14px;padding:10px 11px;border:1.5px solid #D9E2EC;border-radius:9px;background:#FAFCFE;" placeholder="如 3" value="' + (t.est || "") + '"></div></div>' +
       '<div class="fld"><label>前置依赖（可多选）</label><div class="chipbox" id="efDeps">' +
         DB.tasks.filter(x => x.id !== tid).map(x =>
           '<button class="cb' + (t.deps.indexOf(x.id) >= 0 ? " on" : "") + '" data-d="' + x.id + '">' + esc(x.name.slice(0,12)) + "</button>"
@@ -1290,8 +1626,8 @@ function openSheet(tid){
       '<button class="sbtn gray" id="shClose">关闭</button></div>';
   } else {
     // —— 成员端：可标记完成 + 提交预警 ——
-    h += '<div style="font-size:12px;font-weight:700;color:#4A5568;margin-bottom:4px;">完成进度：' + effP(t) + "%</div>" +
-      '<input type="range" min="0" max="100" value="' + effP(t) + '" disabled>';
+    h += '<div style="font-size:12px;font-weight:700;color:#4A5568;margin-bottom:4px;">完成进度：' + ep + "%" + (isAutoP(t) ? "（含自动推进）" : "") + "</div>" +
+      '<input type="range" min="0" max="100" value="' + ep + '" disabled>';
     if (FB_ON) {
       const mineA = (me.id && actions[me.id]) || {};
       const iDone = !!((mineA.completions || {})[tid]);
@@ -1306,9 +1642,56 @@ function openSheet(tid){
     }
     h += '<div class="row-btns"><button class="sbtn gray" id="shClose">关闭</button></div>';
   }
+
+  // —— 任务动态 + 讨论（所有模式可见） ——
+  if (FB_ON) {
+    h += '<div class="sec-h">🕐 任务动态</div><div id="actList"></div>';
+    h += '<div class="sec-h">💬 讨论</div><div id="cmtList"></div>' +
+      '<div class="cmt-box"><input type="text" id="cmtInput" placeholder="写下进展、问题或结论…" maxlength="200">' +
+      '<button class="icbtn" id="cmtAtt" title="添加附件">📎</button>' +
+      '<input type="file" id="cmtFile" style="display:none;" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.txt">' +
+      '<button class="sendbtn" id="cmtSend">发送</button></div>' +
+      '<div class="att-prev" id="attPrev"></div>';
+  }
+
   $("sheet").innerHTML = h;
   $("mask").classList.add("on");
   $("sheet").classList.add("on");
+
+  renderActList(tid);
+  renderCmtList(tid);
+  let pendingAtt = null;
+  if ($("cmtAtt")) {
+    $("cmtAtt").addEventListener("click", () => $("cmtFile").click());
+    $("cmtFile").addEventListener("change", () => {
+      const f = $("cmtFile").files[0]; if (!f) return;
+      if (f.size > 1500 * 1024) { toast("附件不能超过 1.5MB"); $("cmtFile").value = ""; return; }
+      const rd = new FileReader();
+      rd.onload = () => {
+        pendingAtt = { b64: String(rd.result).split(",")[1], name: f.name, mime: f.type || "application/octet-stream" };
+        $("attPrev").textContent = "📎 已选择：" + f.name + "（点发送随评论上传）";
+      };
+      rd.readAsDataURL(f);
+    });
+    $("cmtSend").addEventListener("click", async () => {
+      const txt = $("cmtInput").value.trim();
+      if (!txt && !pendingAtt) { toast("写点内容或选择附件"); return; }
+      $("cmtSend").textContent = "发送中…";
+      let att = null;
+      try {
+        if (pendingAtt) {
+          const cid = "c" + Date.now();
+          const safe = pendingAtt.name.replace(/[^\w.\-一-龥]/g, "_").slice(-40);
+          await fbPutFile("att/" + cid + "_" + safe, pendingAtt.b64);
+          att = { path: "att/" + cid + "_" + safe, name: pendingAtt.name, mime: pendingAtt.mime };
+        }
+        const ok = await postComment(tid, txt || "（附件）", att);
+        if (ok) { $("cmtInput").value = ""; pendingAtt = null; $("attPrev").textContent = ""; renderCmtList(tid); renderActList(tid); }
+      } catch(e){ toast(e.message); }
+      $("cmtSend").textContent = "发送";
+    });
+    $("cmtInput").addEventListener("keydown", e => { if (e.key === "Enter") $("cmtSend").click(); });
+  }
 
   if ($("shRange") && (editMode || !isRemote())) {
     $("shRange").addEventListener("input", e => { if ($("shP")) $("shP").textContent = e.target.value + "%"; });
@@ -1319,6 +1702,9 @@ function openSheet(tid){
     });
     $("efDeps").querySelectorAll(".cb").forEach(b => {
       b.addEventListener("click", () => b.classList.toggle("on"));
+    });
+    $("efPrio").querySelectorAll(".cb").forEach(b => {
+      b.addEventListener("click", () => { $("efPrio").querySelectorAll(".cb").forEach(x => x.classList.remove("on")); b.classList.add("on"); });
     });
     $("efSave").addEventListener("click", () => {
       const name = $("efName").value.trim();
@@ -1332,10 +1718,18 @@ function openSheet(tid){
         if (!group) { toast("请填写新分组名称"); return; }
         groupColor(group);
       }
+      const changed = [];
+      if (t.name !== name) changed.push("名称");
+      if (t.start !== start || t.end !== end) changed.push("日期 " + t.start.slice(5) + "→" + t.end.slice(5) + " 改为 " + start.slice(5) + "→" + end.slice(5));
+      if (t.owner !== owner) changed.push("负责人");
+      const sel = $("efPrio").querySelector(".cb.on");
       t.name = name; t.owner = owner; t.start = start; t.end = end; t.group = group;
+      t.prio = sel ? sel.dataset.v : "P1";
+      t.est = $("efEst").value.trim();
       t.p = +($("shRange").value);
       t.deps = [];
       $("efDeps").querySelectorAll(".cb.on").forEach(b => t.deps.push(b.dataset.d));
+      if (changed.length) logAct(tid, "plan", { text: "修改" + changed.join("、") });
       markDirty(); initData(); afterChange(); closeSheet();
       toast("已保存，点「🚀 发布」同步给全团队");
     });
@@ -1355,15 +1749,69 @@ function openSheet(tid){
     $("shDone").addEventListener("click", () => { setProgress(tid, p >= 100 ? 0 : 100); closeSheetSoon(); });
   }
   if ($("shClose")) $("shClose").addEventListener("click", closeSheet);
-  // v3 事件接线
+  // 事件接线
   if ($("efClear")) $("efClear").addEventListener("click", () => { ownerClearCompletion(tid); closeSheetSoon(); });
   $("sheet").querySelectorAll(".resolve").forEach(b => {
-    b.addEventListener("click", () => { ownerResolveAlert(b.dataset.aid); closeSheetSoon(); });
+    b.addEventListener("click", () => {
+      let target = null;
+      Object.keys(actions).forEach(mid => { ((actions[mid] && actions[mid].alerts) || []).forEach(a => { if (a.id === b.dataset.aid) target = a; }); });
+      if (target) openResolveForm(target, tid);
+    });
   });
   if ($("mbDone")) $("mbDone").addEventListener("click", () => { memberToggleDone(tid); closeSheetSoon(); });
   if ($("mbStart")) $("mbStart").addEventListener("click", () => { memberToggleStart(tid); closeSheetSoon(); });
   if ($("mbAlert")) $("mbAlert").addEventListener("click", () => openAlertForm(t));
   if ($("mbWho")) $("mbWho").addEventListener("click", () => { closeSheet(); openMeModal(); });
+}
+
+// 管理员处理预警（可回复，成员可见）
+function openResolveForm(a, tid){
+  $("sheet").innerHTML = "<h3>✔ 处理预警</h3>" +
+    '<div class="meta">⚠️ ' + esc(a.name) + " · " + fmtTs(a.ts) + "<br>" + esc(a.reason) + "</div>" +
+    '<div class="fld"><label>回复（可选，全团队可见）</label><textarea class="reason" id="rsReply" placeholder="例如：已联系供应商，确认 7/28 前交付 / 已知悉，按原计划推进"></textarea></div>' +
+    '<div class="row-btns"><button class="sbtn ok" id="rsGo">✔ 标记已处理</button><button class="sbtn gray" id="rsBack">返回</button></div>';
+  $("rsGo").addEventListener("click", () => { ownerResolveAlert(a.id, $("rsReply").value.trim()); openSheet(tid); });
+  $("rsBack").addEventListener("click", () => openSheet(tid));
+}
+
+// 任务动态列表
+function renderActList(tid){
+  const box = $("actList"); if (!box) return;
+  const evs = activity.events.filter(e => e.taskId === tid).sort((a, b) => b.at - a.at).slice(0, 12);
+  box.innerHTML = evs.length ? evs.map(e =>
+    '<div class="act-item"><span class="who">' + esc(e.actor) + "</span><span>" + (ACT_LABEL[e.type] || e.type) +
+    (actText(e) ? " · " + esc(actText(e)) : "") + '</span><span class="when">' + fmtTs(e.at) + "</span></div>"
+  ).join("") : '<div style="font-size:11px;color:#9AA7B5;padding:4px 0;">暂无动态，操作后会自动记录在这里</div>';
+}
+
+// 评论列表 + 附件懒加载
+function renderCmtList(tid){
+  const box = $("cmtList"); if (!box) return;
+  const items = comments.items.filter(c => c.taskId === tid).sort((a, b) => a.at - b.at);
+  box.innerHTML = items.length ? items.map(c =>
+    '<div class="cmt-item"><span class="who">' + esc(c.actor) + '</span><span class="when">' + fmtTs(c.at) + "</span>" +
+    (c.text ? '<div class="txt">' + esc(c.text) + "</div>" : "") +
+    (c.att ? '<span class="cmt-att" data-path="' + esc(c.att.path) + '" data-name="' + esc(c.att.name) + '" data-mime="' + esc(c.att.mime) + '">📎 ' + esc(c.att.name) + "</span>" : "") +
+    "</div>"
+  ).join("") : '<div style="font-size:11px;color:#9AA7B5;padding:4px 0;">还没有讨论，说点什么吧</div>';
+  box.querySelectorAll(".cmt-att").forEach(el => {
+    el.addEventListener("click", () => openAttachment(el));
+    if ((el.dataset.mime || "").indexOf("image/") === 0) openAttachment(el, true);
+  });
+}
+async function openAttachment(el, inline){
+  try {
+    if (el._url) { if (!inline) window.open(el._url, "_blank"); return; }
+    el.textContent = "📎 加载中…";
+    const blob = await fbFetchBlob(el.dataset.path);
+    el._url = URL.createObjectURL(blob);
+    if ((el.dataset.mime || "").indexOf("image/") === 0) {
+      el.innerHTML = '📎 ' + esc(el.dataset.name) + '<img src="' + el._url + '">';
+    } else {
+      el.textContent = "📎 " + el.dataset.name + "（点击下载）";
+      if (!inline) { const a = document.createElement("a"); a.href = el._url; a.download = el.dataset.name; a.click(); }
+    }
+  } catch(e){ el.textContent = "📎 附件加载失败"; }
 }
 function openAlertForm(t){
   $("sheet").innerHTML = "<h3>⚠️ 提交预警</h3>" +
@@ -1425,6 +1873,7 @@ function openMsModal(mid){
 /* ==================== 管理模式 ==================== */
 function enterEditMode(){
   editMode = true;
+  document.body.classList.add("editmode");
   if (FB_ON) loadFeedback().then(renderAll);
   $("editbar").classList.add("on");
   $("adminChip").style.display = "";
@@ -1446,6 +1895,7 @@ function enterEditMode(){
 }
 function exitEditMode(){
   editMode = false;
+  document.body.classList.remove("editmode");
   $("editbar").classList.remove("on");
   $("adminChip").style.display = "none";
   $("btnAdmin").textContent = "🔒 管理";
@@ -1473,7 +1923,7 @@ $("patSave").addEventListener("click", async () => {
 $("ebAddTask").addEventListener("click", () => {
   const id = "t" + Date.now();
   const g = Object.keys(DB.groups)[0] || "默认";
-  DB.tasks.push({ id: id, name: "新任务", start: today().toISOString().slice(0,10), end: new Date(today().getTime()+7*DAY).toISOString().slice(0,10), group: g, owner: "待定", deps: [], p: 0 });
+  DB.tasks.push({ id: id, name: "新任务", start: today().toISOString().slice(0,10), end: new Date(today().getTime()+7*DAY).toISOString().slice(0,10), group: g, owner: "待定", deps: [], p: 0, prio: "P1", est: "" });
   initData(); markDirty(); afterChange(); openSheet(id);
 });
 /* ==================== 成员面板（管理员） ==================== */
@@ -1487,7 +1937,8 @@ function openMembersPanel(){
     rows += '<div class="mem-row"><div><b>' + esc(m.name) + '</b><div class="meta2">' +
       (a ? ("活跃 " + (a.active ? fmtTs(a.active) : "—") + " · 完成 " + comps + " 项 · 预警 " + alerts + " 条") : "尚未打开过链接") +
       '</div></div><span class="st ' + (read ? "read" : "unread") + '">' + (read ? "已读 ✓ " + fmtTs(read) : "未读") + "</span>" +
-      '<span class="ms-edit" data-memdel="' + m.id + '">删除</span></div>';
+      '<span class="ms-edit" data-memdel="' + m.id + '">删除</span></div>' +
+      '<div style="padding:0 2px 6px;border-bottom:1px solid #F0F4F8;"><input type="text" data-memkey="' + m.id + '" value="' + esc(m.sendKey || "") + '" placeholder="Server酱 SendKey（可选，每日微信提醒本人）" style="width:100%;font-size:11.5px;padding:7px 9px;border:1px solid #E2E8F0;border-radius:8px;background:#FAFCFE;outline:none;"></div>';
   });
   Object.keys(actions).forEach(mid => {
     if ((DB.members || []).some(m => m.id === mid)) return;
@@ -1517,9 +1968,99 @@ function openMembersPanel(){
       markDirty(); openMembersPanel();
     });
   });
+  $("sheet").querySelectorAll("[data-memkey]").forEach(inp => {
+    inp.addEventListener("change", () => {
+      const m = (DB.members || []).find(x => x.id === inp.dataset.memkey);
+      if (m) { m.sendKey = inp.value.trim(); markDirty(); toast("SendKey 已保存，发布后生效"); }
+    });
+  });
   $("shClose").addEventListener("click", closeSheet);
 }
 $("ebMembers").addEventListener("click", openMembersPanel);
+$("ebSettings").addEventListener("click", openSettings);
+
+/* ==================== 设置面板（自动进度开关 / 基线 / 版本快照回滚） ==================== */
+function openSettings(){
+  const bl = DB.baseline;
+  let h = "<h3>⚙️ 设置</h3>";
+  h += '<div class="set-row"><div class="lab">📈 进度自动爬升<div class="sub">「进行中」或已有进度的任务，进度按时间基准自动推进（手动改高不会被拉低）</div></div>' +
+    '<button class="cb' + (DB.autoP === false ? "" : " on") + '" id="setAutoP">' + (DB.autoP === false ? "已关闭" : "已开启") + "</button></div>";
+  h += '<div class="set-row"><div class="lab">📏 计划基线<div class="sub">' +
+    (bl ? "保存于 " + new Date(bl.savedAt).toLocaleString("zh-CN") + " · 甘特图开「基线对比」可看偏差" : "还没有基线。保存后可用「基线对比」查看计划偏差") +
+    '</div></div><button class="sbtn blue" style="flex:0 0 auto;padding:9px 12px;font-size:12px;" id="setSaveBase">保存当前为基线</button></div>';
+  h += '<div class="sec-h">🗂 历史版本（每次发布自动快照）</div><div id="snapList" style="font-size:12px;color:#9AA7B5;">加载中…</div>';
+  h += '<div class="row-btns" style="margin-top:14px;"><button class="sbtn gray" id="shClose">关闭</button></div>';
+  $("sheet").innerHTML = h;
+  $("mask").classList.add("on");
+  $("sheet").classList.add("on");
+  $("shClose").addEventListener("click", closeSheet);
+  $("setAutoP").addEventListener("click", () => {
+    DB.autoP = (DB.autoP === false) ? true : false;
+    markDirty();
+    toast(DB.autoP ? "已开启自动爬升，发布后生效" : "已关闭自动爬升，发布后生效");
+    openSettings();
+  });
+  $("setSaveBase").addEventListener("click", () => {
+    if (!confirm("把当前计划保存为基线？之后的「基线对比」将以它为基准。")) return;
+    DB.baseline = { savedAt: Date.now(), tasks: {} };
+    DB.tasks.forEach(t => { DB.baseline.tasks[t.id] = { start: t.start, end: t.end }; });
+    markDirty();
+    toast("📏 基线已保存，发布后生效");
+    openSettings();
+  });
+  loadSnapList();
+}
+async function loadSnapList(){
+  const box = $("snapList"); if (!box) return;
+  try {
+    const r = await fetch(CONFIG.fbApiUrl + "/snap", { headers: fbHead(false), cache: "no-store" });
+    if (!r.ok) { box.textContent = "暂无历史快照（下次发布后自动生成）"; return; }
+    const files = (await r.json()).filter(f => /^v\d+\.enc$/.test(f.name)).sort((a, b) => b.name.localeCompare(a.name));
+    if (!files.length) { box.textContent = "暂无历史快照（下次发布后自动生成）"; return; }
+    box.innerHTML = files.slice(0, 20).map(f => {
+      const ts = +f.name.replace(/^v|\.enc$/g, "");
+      return '<div class="snap-row"><span>🗂 ' + new Date(ts).toLocaleString("zh-CN") + '</span>' +
+        '<span class="rb" data-path="snap/' + f.name + '">回滚到此版本</span></div>';
+    }).join("");
+    box.querySelectorAll(".rb").forEach(el => {
+      el.addEventListener("click", () => rollbackSnap(el.dataset.path));
+    });
+  } catch(e){ box.textContent = "快照列表加载失败"; }
+}
+async function rollbackSnap(path){
+  if (!confirm("确定回滚到这个历史版本？线上当前计划将被覆盖。")) return;
+  try {
+    const r = await fetch(CONFIG.fbApiUrl + "/" + path, { headers: fbHead(true), cache: "no-store" });
+    if (!r.ok) throw new Error("读取快照失败");
+    const blob = await r.text();
+    let sha = null;
+    const g = await fetch(CONFIG.apiUrl, { headers: { "Authorization": "Bearer " + pat, "Accept": "application/vnd.github+json" }, cache: "no-store" });
+    if (g.ok) sha = (await g.json()).sha;
+    const body = { message: "rollback to " + path, content: btoa(unescape(encodeURIComponent(blob))) };
+    if (sha) body.sha = sha;
+    const pr = await fetch(CONFIG.apiUrl, { method: "PUT",
+      headers: { "Authorization": "Bearer " + pat, "Accept": "application/vnd.github+json", "Content-Type": "application/json" },
+      body: JSON.stringify(body) });
+    if (!pr.ok) throw new Error("回滚失败 HTTP " + pr.status);
+    closeSheet();
+    toast("✅ 已回滚，正在重新加载…");
+    await loadRemote(true);
+    if (FB_ON) await loadFeedback();
+    initData(); renderAll();
+  } catch(e){ toast(e.message); }
+}
+async function pruneSnaps(){
+  try {
+    const r = await fetch(CONFIG.fbApiUrl + "/snap", { headers: fbHead(false), cache: "no-store" });
+    if (!r.ok) return;
+    const files = (await r.json()).filter(f => /^v\d+\.enc$/.test(f.name)).sort((a, b) => b.name.localeCompare(a.name));
+    for (let i = 30; i < files.length; i++) {
+      await fetch(CONFIG.fbApiUrl + "/snap/" + files[i].name, { method: "DELETE",
+        headers: Object.assign({ "Content-Type": "application/json" }, fbHead(false)),
+        body: JSON.stringify({ message: "prune snapshot", sha: files[i].sha }) });
+    }
+  } catch(e){}
+}
 $("ebAddMs").addEventListener("click", () => openMsModal(null));
 $("ebPub").addEventListener("click", publishDB);
 $("ebExit").addEventListener("click", exitEditMode);
@@ -1557,6 +2098,10 @@ const PPD_MIN = 3, PPD_MAX = 40, DEP_MIN = 0.3, DEP_MAX = 3;
 $("zoomIn").addEventListener("click", () => { ppd = Math.min(ppd * 1.3, PPD_MAX); renderGantt(); });
 $("zoomOut").addEventListener("click", () => { ppd = Math.max(ppd / 1.3, PPD_MIN); renderGantt(); });
 $("toggleDeps").addEventListener("click", function(){ showDeps = !showDeps; this.classList.toggle("on", showDeps); renderGantt(); });
+$("toggleBase").addEventListener("click", function(){
+  if (!DB.baseline || !DB.baseline.tasks) { toast("还没有保存基线：管理模式 → ⚙️ 设置 → 保存当前为基线"); return; }
+  showBase = !showBase; this.classList.toggle("on", showBase); renderGantt();
+});
 $("goToday").addEventListener("click", () => {
   const tx = Math.round((today() - MIN_DATE)/DAY) * ppd;
   $("ganttScroll").scrollLeft = Math.max(0, tx - window.innerWidth/2);
