@@ -781,8 +781,9 @@ async function fbMergeJson(path, def, mutate){
   }
   throw new Error("写入冲突，请重试");
 }
-// 上传二进制附件（base64），返回路径
+// 上传二进制附件（base64），返回路径；>1MB 自动走 Git Data API（突破 Contents API 的 1MB 硬限）
 async function fbPutFile(path, b64){
+  if (b64.length > 1300000) return fbPutFileBig(path, b64);
   const body = { message: "attachment", content: b64 };
   const g = await fetch(CONFIG.fbApiUrl + "/" + path, { headers: fbHead(false), cache: "no-store" });
   if (g.ok) body.sha = (await g.json()).sha;
@@ -792,6 +793,54 @@ async function fbPutFile(path, b64){
   });
   if (!r.ok) throw new Error("附件上传失败 HTTP " + r.status);
   return path;
+}
+// 大文件上传：blob → tree → commit → ref（单文件上限 25MB）
+async function fbPutFileBig(path, b64){
+  const base = CONFIG.fbApiUrl.replace(/\/contents$/, "");
+  const H = Object.assign({ "Content-Type": "application/json" }, fbHead(false));
+  const rb = await fetch(base + "/git/blobs", { method: "POST", headers: H, body: JSON.stringify({ content: b64, encoding: "base64" }) });
+  if (!rb.ok) throw new Error("附件上传失败(blob) HTTP " + rb.status);
+  const blobSha = (await rb.json()).sha;
+  const rref = await fetch(base + "/git/refs/heads/main", { headers: H, cache: "no-store" });
+  if (!rref.ok) throw new Error("附件上传失败(ref) HTTP " + rref.status);
+  const commitSha = (await rref.json()).object.sha;
+  const rc = await fetch(base + "/git/commits/" + commitSha, { headers: H, cache: "no-store" });
+  if (!rc.ok) throw new Error("附件上传失败(commit) HTTP " + rc.status);
+  const treeSha = (await rc.json()).tree.sha;
+  const rt = await fetch(base + "/git/trees", { method: "POST", headers: H,
+    body: JSON.stringify({ base_tree: treeSha, tree: [{ path: path, mode: "100644", type: "blob", sha: blobSha }] }) });
+  if (!rt.ok) throw new Error("附件上传失败(tree) HTTP " + rt.status);
+  const newTree = (await rt.json()).sha;
+  const rn = await fetch(base + "/git/commits", { method: "POST", headers: H,
+    body: JSON.stringify({ message: "attachment", tree: newTree, parents: [commitSha] }) });
+  if (!rn.ok) throw new Error("附件上传失败(new commit) HTTP " + rn.status);
+  const newCommit = (await rn.json()).sha;
+  const rp = await fetch(base + "/git/refs/heads/main", { method: "PATCH", headers: H, body: JSON.stringify({ sha: newCommit }) });
+  if (!rp.ok) throw new Error("附件上传失败(update ref) HTTP " + rp.status);
+  return path;
+}
+function fmtKB(bytes){ return bytes >= 1048576 ? (bytes / 1048576).toFixed(1) + "MB" : Math.max(1, Math.round(bytes / 1024)) + "KB"; }
+// 图片智能压缩：最长边 2000px + JPEG 0.88（白底填充防透明变黑）
+function compressImage(file){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX = 2000;
+      let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+      const sc = Math.min(1, MAX / Math.max(w, h));
+      w = Math.max(1, Math.round(w * sc)); h = Math.max(1, Math.round(h * sc));
+      const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+      const ctx = cv.getContext("2d");
+      ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      const du = cv.toDataURL("image/jpeg", 0.88);
+      resolve({ b64: du.split(",")[1], name: (file.name || "photo").replace(/\.[A-Za-z0-9]+$/, "") + ".jpg" });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("img decode")); };
+    img.src = url;
+  });
 }
 async function fbFetchBlob(path){
   const r = await fetch(CONFIG.fbApiUrl + "/" + path, { headers: fbHead(true), cache: "no-store" });
@@ -1830,13 +1879,23 @@ function openSheet(tid){
   let pendingAtt = null;
   if ($("cmtAtt")) {
     $("cmtAtt").addEventListener("click", () => $("cmtFile").click());
-    $("cmtFile").addEventListener("change", () => {
+    $("cmtFile").addEventListener("change", async () => {
       const f = $("cmtFile").files[0]; if (!f) return;
-      if (f.size > 1500 * 1024) { toast("附件不能超过 1.5MB"); $("cmtFile").value = ""; return; }
+      const isImg = (f.type || "").indexOf("image/") === 0;
+      if (f.size > (isImg ? 25 : 20) * 1024 * 1024) { toast(isImg ? "图片不能超过 25MB" : "附件不能超过 20MB"); $("cmtFile").value = ""; return; }
+      if (isImg && f.size > 900 * 1024) {
+        $("attPrev").textContent = "📎 图片智能压缩中…";
+        try {
+          const c = await compressImage(f);
+          pendingAtt = { b64: c.b64, name: c.name, mime: "image/jpeg" };
+          $("attPrev").textContent = "📎 已选择：" + c.name + "（已压缩至 " + fmtKB(c.b64.length * 0.75) + "，点发送上传）";
+        } catch(e) { toast("图片处理失败，请换一张试试"); $("cmtFile").value = ""; }
+        return;
+      }
       const rd = new FileReader();
       rd.onload = () => {
         pendingAtt = { b64: String(rd.result).split(",")[1], name: f.name, mime: f.type || "application/octet-stream" };
-        $("attPrev").textContent = "📎 已选择：" + f.name + "（点发送随评论上传）";
+        $("attPrev").textContent = "📎 已选择：" + f.name + "（" + fmtKB(f.size) + "，点发送上传）";
       };
       rd.readAsDataURL(f);
     });
