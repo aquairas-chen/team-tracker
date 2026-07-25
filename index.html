@@ -912,7 +912,7 @@ function renderGantt(){
   });
   html += "</div>";
 
-  html += '<div style="position:relative;width:' + W + 'px;height:' + (DB.tasks.length*ROW_H) + 'px;">';
+  html += '<div class="g-chart" style="position:relative;width:' + W + 'px;height:' + (DB.tasks.length*ROW_H) + 'px;">';
 
   d = new Date(MIN_DATE);
   while (d < MAX_DATE) {
@@ -990,7 +990,7 @@ function renderGantt(){
   let lg = "";
   Object.keys(DB.groups).forEach(g => { lg += '<span class="lg"><i style="background:' + DB.groups[g] + ';"></i>' + esc(g) + "</span>"; });
   $("legend").innerHTML = lg;
-  $("ganttTip").textContent = (canEdit() ? "点按任务条更新进度" : "点按任务条查看详情") + "，双指可缩放";
+  $("ganttTip").textContent = (canEdit() ? "点按任务条更新进度" : "点按任务条查看详情") + (window.matchMedia("(pointer: coarse)").matches ? "，双指可缩放" : "，滚轮可缩放");
 }
 
 /* ==================== 依赖关系图 ==================== */
@@ -1565,47 +1565,111 @@ $("depZoomIn").addEventListener("click", () => { depScale = Math.min(depScale * 
 $("depZoomOut").addEventListener("click", () => { depScale = Math.max(depScale / 1.25, DEP_MIN); renderDep(); });
 $("toggleCrit").addEventListener("click", function(){ showCrit = !showCrit; this.classList.toggle("on", showCrit); renderDep(); });
 
-/* ==================== 双指缩放（以双指中心为锚点） ==================== */
-function bindPinch(el, opt){
+/* ==================== 双指缩放 & 滚轮缩放（手势中只改 CSS 预览，松手才重渲染，保证丝滑） ==================== */
+function pinchDist(t){ return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY); }
+
+// 甘特图双指缩放：只缩放右侧图表区（ppd），左侧任务名列固定；最小 3px/天，最大 40px/天
+(function(){
+  const el = $("ganttScroll");
   let st = null;
-  const mid = t => ({ x: (t[0].clientX + t[1].clientX)/2, y: (t[0].clientY + t[1].clientY)/2 });
-  const dist = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
   el.addEventListener("touchstart", e => {
     if (e.touches.length !== 2) { st = null; return; }
-    const r = el.getBoundingClientRect(), m = mid(e.touches);
-    st = { d0: dist(e.touches) || 1, s0: opt.get(), sl: el.scrollLeft, sp: el.scrollTop,
-           vx: m.x - r.left, vy: m.y - r.top };
-    st.ax = (st.sl + st.vx - (opt.offX || 0)) / st.s0;  // 锚点的内容坐标（与缩放无关）
-    st.ay = (st.sp + st.vy) / st.s0;
+    const r = el.getBoundingClientRect();
+    const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const td = Math.round((MAX_DATE - MIN_DATE) / DAY);
+    st = { d0: pinchDist(e.touches) || 1, ppd0: ppd, ppd1: ppd, W0: td * ppd,
+           vx: mx - r.left, moved: false };
+    st.ax = (el.scrollLeft + st.vx - NAME_W) / st.ppd0;  // 锚点（天数坐标）
   }, { passive: true });
   el.addEventListener("touchmove", e => {
     if (!st || e.touches.length !== 2) return;
     e.preventDefault();
-    const s1 = opt.clamp(st.s0 * dist(e.touches) / st.d0);
-    if (Math.abs(s1 - opt.get()) < 1e-6) return;
-    opt.set(s1);  // 触发重渲染
-    el.scrollLeft = st.ax * s1 + (opt.offX || 0) - st.vx;
-    if (opt.vertical) el.scrollTop = st.ay * s1 - st.vy;
+    const ppd1 = Math.min(Math.max(st.ppd0 * pinchDist(e.touches) / st.d0, PPD_MIN), PPD_MAX);
+    st.ppd1 = ppd1; st.moved = true;
+    const newW = Math.round(st.W0 * ppd1 / st.ppd0);
+    const inner = $("ganttInner");
+    inner.style.width = (NAME_W + newW) + "px";
+    inner.style.gridTemplateColumns = NAME_W + "px " + newW + "px";
+    const k = newW / st.W0;
+    inner.querySelectorAll(".g-head, .g-chart, .g-axis").forEach(p => {
+      p.style.transform = "scaleX(" + k + ")"; p.style.transformOrigin = "0 0";
+    });
+    el.scrollLeft = st.ax * ppd1 + NAME_W - st.vx;
   }, { passive: false });
-  el.addEventListener("touchend", e => { if (e.touches.length < 2) st = null; }, { passive: true });
+  function commit(e){
+    if (!st || (e.touches && e.touches.length >= 2)) return;
+    const p1 = st.ppd1, ax = st.ax, vx = st.vx, moved = st.moved; st = null;
+    if (!moved) return;
+    ppd = p1; renderGantt();  // 松手后按真实 ppd 重渲染，文字清晰
+    el.scrollLeft = ax * ppd + NAME_W - vx;
+  }
+  el.addEventListener("touchend", commit, { passive: true });
   el.addEventListener("touchcancel", () => { st = null; }, { passive: true });
-}
+})();
 
-// 甘特图：只缩放右侧图表区（ppd），左侧任务名列固定；最小 3px/天，最大 40px/天
-bindPinch($("ganttScroll"), {
-  get: () => ppd,
-  set: v => { ppd = v; renderGantt(); },
-  clamp: v => Math.min(Math.max(v, PPD_MIN), PPD_MAX),
-  offX: NAME_W, vertical: false
-});
+// 甘特图滚轮缩放（电脑端）：锚定光标下的日期，rAF 合帧保证流畅
+(function(){
+  const el = $("ganttScroll");
+  let acc = 1, raf = 0, anchor = null;
+  el.addEventListener("wheel", e => {
+    if (!DB || !DB.tasks || !DB.tasks.length) return;
+    e.preventDefault();
+    if (!anchor) {
+      const r = el.getBoundingClientRect();
+      const vx = e.clientX - r.left;
+      anchor = { ax: (el.scrollLeft + vx - NAME_W) / ppd, vx: vx };
+    }
+    acc *= Math.pow(1.0018, -e.deltaY);
+    if (!raf) raf = requestAnimationFrame(() => {
+      raf = 0;
+      ppd = Math.min(Math.max(ppd * acc, PPD_MIN), PPD_MAX);
+      acc = 1;
+      renderGantt();
+      el.scrollLeft = anchor.ax * ppd + NAME_W - anchor.vx;
+      anchor = null;
+    });
+  }, { passive: false });
+})();
 
-// 依赖关系图：整体缩放，最小 0.3x，最大 3x
-bindPinch($("depScroll"), {
-  get: () => depScale,
-  set: v => { depScale = v; renderDep(); },
-  clamp: v => Math.min(Math.max(v, DEP_MIN), DEP_MAX),
-  vertical: true
-});
+// 依赖图双指缩放：手势中只改 transform 预览，松手重渲染；最小 0.3x，最大 3x
+(function(){
+  const el = $("depScroll");
+  let st = null;
+  el.addEventListener("touchstart", e => {
+    if (e.touches.length !== 2) { st = null; return; }
+    const w = el.firstElementChild; if (!w || !depScale) return;
+    const r = el.getBoundingClientRect();
+    const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    st = { d0: pinchDist(e.touches) || 1, s0: depScale, s1: depScale,
+           bw: w.offsetWidth / depScale, bh: w.offsetHeight / depScale,
+           vx: mx - r.left, vy: my - r.top, moved: false };
+    st.ax = (el.scrollLeft + st.vx) / st.s0;
+    st.ay = (el.scrollTop + st.vy) / st.s0;
+  }, { passive: true });
+  el.addEventListener("touchmove", e => {
+    if (!st || e.touches.length !== 2) return;
+    e.preventDefault();
+    const s1 = Math.min(Math.max(st.s0 * pinchDist(e.touches) / st.d0, DEP_MIN), DEP_MAX);
+    st.s1 = s1; st.moved = true;
+    const w = el.firstElementChild;
+    w.style.transform = "scale(" + s1 + ")";
+    w.style.width = (st.bw * s1) + "px";
+    w.style.height = (st.bh * s1) + "px";
+    el.scrollLeft = st.ax * s1 - st.vx;
+    el.scrollTop = st.ay * s1 - st.vy;
+  }, { passive: false });
+  function commit(e){
+    if (!st || (e.touches && e.touches.length >= 2)) return;
+    const s1 = st.s1, ax = st.ax, ay = st.ay, vx = st.vx, vy = st.vy, moved = st.moved; st = null;
+    if (!moved) return;
+    depScale = s1; renderDep();
+    el.scrollLeft = ax * depScale - vx;
+    el.scrollTop = ay * depScale - vy;
+  }
+  el.addEventListener("touchend", commit, { passive: true });
+  el.addEventListener("touchcancel", () => { st = null; }, { passive: true });
+})();
 
 /* ==================== 甘特图导出 PNG ==================== */
 function exportGanttPNG(){
