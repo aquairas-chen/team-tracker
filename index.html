@@ -248,6 +248,11 @@
   .set-row .sub { font-size: 10.5px; color: #9AA7B5; font-weight: 400; margin-top: 2px; }
   .snap-row { display: flex; align-items: center; gap: 8px; padding: 8px 2px; border-bottom: 1px dashed #EDF2F7; font-size: 12px; }
   .snap-row .rb { margin-left: auto; font-size: 11px; font-weight: 800; color: #DD6B20; }
+  .memo-item { background: #FFFBEB; border: 1px solid #F6E05E; border-left: 4px solid #D69E2E; border-radius: 10px; padding: 11px 13px; margin-bottom: 8px; font-size: 13px; line-height: 1.65; display: flex; gap: 10px; }
+  .memo-item .txt { flex: 1; color: #2D3748; word-break: break-word; white-space: pre-wrap; }
+  .memo-item .meta2 { font-size: 10px; color: #B7791F; margin-top: 5px; font-weight: 600; }
+  .memo-item .del { flex: 0 0 auto; font-size: 11px; color: #C53030; font-weight: 800; align-self: flex-start; padding: 2px 6px; }
+  .memo-empty { text-align: center; color: #9AA7B5; font-size: 12.5px; padding: 40px 20px; line-height: 1.8; }
 
   /* ==================== iPad（≥768px） ==================== */
   @media (min-width: 768px) {
@@ -336,6 +341,7 @@
     <button class="tab" data-v="list">任务列表</button>
     <button class="tab" data-v="ms">里程碑</button>
     <button class="tab" data-v="mine">我的</button>
+    <button class="tab" data-v="memo">反复思考</button>
     <button class="tab" data-v="remind">提醒<span class="tabdot" id="tabDot"></span></button>
   </nav>
 </header>
@@ -380,6 +386,15 @@
   <section class="view" id="v-mine">
     <div class="mine-id"><div class="nm" id="mineName">未选择身份</div><button class="sw" id="mineSwitch">更换身份</button></div>
     <div id="mineBody"></div>
+  </section>
+
+  <section class="view" id="v-memo">
+    <div style="font-size:12px;color:#8A97A8;margin-bottom:10px;">💭 Hanrui 的备忘录 · 随时记，随时删，全团队可见</div>
+    <div class="cmt-box" style="margin-bottom:14px;">
+      <input type="text" id="memoInput" placeholder="记一笔：想法 / 要反复琢磨的事 / 灵感…" maxlength="200">
+      <button class="sendbtn" id="memoAdd">添加</button>
+    </div>
+    <div id="memoList"></div>
   </section>
 
   <section class="view" id="v-remind">
@@ -686,6 +701,7 @@ let actions = {};                                  // memberId -> {name, complet
 let control = { resolvedAlerts: [], cleared: {}, alertReplies: {} }; // 管理员控制：已处理预警 / 撤销的完成标记 / 预警回复
 let activity = { events: [] };                     // 任务动态留痕（activity.json）
 let comments = { items: [] };                      // 任务评论（comments.json）
+let memos = { items: [] };                         // 反复思考备忘录（memos.json）
 let mySha = null, controlSha = null;
 let me = { id: lsGet("tpd_mid") || "", name: lsGet("tpd_mname") || "" };
 
@@ -700,7 +716,7 @@ async function loadFeedback(){
     const r = await fetch(CONFIG.fbApiUrl, { headers: fbHead(false), cache: "no-store" });
     if (!r.ok) return;
     const files = await r.json();
-    await Promise.all(files.filter(f => /^m_.*\.json$/.test(f.name) || f.name === "control.json" || f.name === "activity.json" || f.name === "comments.json").map(async f => {
+    await Promise.all(files.filter(f => /^m_.*\.json$/.test(f.name) || f.name === "control.json" || f.name === "activity.json" || f.name === "comments.json" || f.name === "memos.json").map(async f => {
       const rr = await fetch(CONFIG.fbApiUrl + "/" + f.name, { headers: fbHead(true), cache: "no-store" });
       if (!rr.ok) return;
       try {
@@ -708,6 +724,7 @@ async function loadFeedback(){
         if (f.name === "control.json") { control = Object.assign({ resolvedAlerts: [], cleared: {}, alertReplies: {} }, j); controlSha = f.sha; }
         else if (f.name === "activity.json") activity = Object.assign({ events: [] }, j);
         else if (f.name === "comments.json") comments = Object.assign({ items: [] }, j);
+        else if (f.name === "memos.json") memos = Object.assign({ items: [] }, j);
         else actions[f.name.replace(/^m_|\.json$/g, "")] = j;
       } catch(e){}
     }));
@@ -1438,6 +1455,52 @@ function renderMine(){
 }
 $("mineSwitch").addEventListener("click", openMeModal);
 
+/* ==================== 反复思考（备忘录） ==================== */
+function renderMemo(){
+  const items = (memos.items || []).slice().sort((a, b) => b.at - a.at);
+  let html = "";
+  if (!items.length) {
+    html = '<div class="memo-empty">💭 还是空白的一页<br>把需要反复琢磨的事记下来，想法不怕多</div>';
+  } else {
+    items.forEach(m => {
+      const canDel = editMode || (me.name && m.actor === me.name);
+      html += '<div class="memo-item"><div class="txt">' + esc(m.text) +
+        '<div class="meta2">' + esc(m.actor) + " · " + fmtTs(m.at) + "</div></div>" +
+        (canDel ? '<button class="del" data-mid="' + m.id + '">删除</button>' : "") + "</div>";
+    });
+  }
+  $("memoList").innerHTML = html;
+  $("memoList").querySelectorAll(".del").forEach(b => {
+    b.addEventListener("click", async () => {
+      if (!confirm("删除这条备忘？")) return;
+      try {
+        memos = await fbMergeJson("memos.json", { items: [] }, j => {
+          j.items = (j.items || []).filter(x => x.id !== b.dataset.mid);
+        });
+        renderMemo(); toast("已删除");
+      } catch(e){ toast("删除失败：" + e.message); }
+    });
+  });
+}
+$("memoAdd").addEventListener("click", async () => {
+  if (!FB_ON) { toast("单机模式无法保存备忘录"); return; }
+  if (!editMode && !me.id) { toast("请先选择你的名字"); openMeModal(); return; }
+  const txt = $("memoInput").value.trim();
+  if (!txt) { toast("先写点内容"); return; }
+  const m = { id: "mm" + Date.now() + Math.floor(Math.random() * 999), text: txt,
+    actor: editMode ? "管理员" : me.name, at: Date.now() };
+  $("memoAdd").textContent = "保存中…";
+  try {
+    memos = await fbMergeJson("memos.json", { items: [] }, j => {
+      j.items = (j.items || []).filter(x => x.id !== m.id).concat(m).slice(-200);
+    });
+    $("memoInput").value = "";
+    renderMemo(); toast("💭 已记下");
+  } catch(e){ toast("保存失败：" + e.message); }
+  $("memoAdd").textContent = "添加";
+});
+$("memoInput").addEventListener("keydown", e => { if (e.key === "Enter") $("memoAdd").click(); });
+
 /* ==================== 提醒（未启动 / 临期 / 延期 / 停滞 + 成员预警） ==================== */
 function stalledTasks(){   // 过了开始日期仍未启动
   return DB.tasks.filter(t => today() > pd(t.start) && !isDoneT(t) && effP(t) === 0 && !startedBy(t.id));
@@ -1530,6 +1593,7 @@ function renderAll(){
   if ($("v-list").classList.contains("on")) renderList();
   if ($("v-ms").classList.contains("on")) renderMs();
   if ($("v-mine").classList.contains("on")) renderMine();
+  if ($("v-memo").classList.contains("on")) renderMemo();
   if ($("v-remind").classList.contains("on")) renderRemind();
 }
 function afterChange(){ renderAll(); }
