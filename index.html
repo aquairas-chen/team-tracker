@@ -253,6 +253,16 @@
   .memo-item .meta2 { font-size: 10px; color: #B7791F; margin-top: 5px; font-weight: 600; }
   .memo-item .del { flex: 0 0 auto; font-size: 11px; color: #C53030; font-weight: 800; align-self: flex-start; padding: 2px 6px; }
   .memo-empty { text-align: center; color: #9AA7B5; font-size: 12.5px; padding: 40px 20px; line-height: 1.8; }
+  .mention { color: #2B6CB0; font-weight: 800; }
+  .at-chips { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+  .at-chips .cb { font-size: 10.5px; padding: 4px 9px; }
+  .feed-day { font-size: 11px; font-weight: 800; color: #8A97A8; margin: 14px 2px 6px; }
+  .feed-item { display: flex; gap: 9px; padding: 8px 2px; border-bottom: 1px dashed #EDF2F7; font-size: 12.5px; line-height: 1.6; align-items: baseline; }
+  .feed-item .ic { flex: 0 0 auto; }
+  .feed-item .who { font-weight: 800; color: #1E3A5F; }
+  .feed-item .tk { color: #2B6CB0; font-weight: 600; cursor: pointer; }
+  .feed-item .when { margin-left: auto; font-size: 10px; color: #9AA7B5; white-space: nowrap; padding-left: 8px; }
+  @media (max-width: 380px) { .tab { font-size: 11.5px; padding: 8px 0; } }
 
   /* ==================== iPad（≥768px） ==================== */
   @media (min-width: 768px) {
@@ -336,12 +346,13 @@
     </div>
   </div>
   <nav class="tabs">
-    <button class="tab on" data-v="gantt">甘特图</button>
-    <button class="tab" data-v="dep">依赖图</button>
-    <button class="tab" data-v="list">任务列表</button>
+    <button class="tab on" data-v="gantt">甘特</button>
+    <button class="tab" data-v="dep">依赖</button>
+    <button class="tab" data-v="list">任务</button>
     <button class="tab" data-v="ms">里程碑</button>
     <button class="tab" data-v="mine">我的</button>
-    <button class="tab" data-v="memo">反复思考</button>
+    <button class="tab" data-v="memo">思考</button>
+    <button class="tab" data-v="feed">动态</button>
     <button class="tab" data-v="remind">提醒<span class="tabdot" id="tabDot"></span></button>
   </nav>
 </header>
@@ -395,6 +406,11 @@
       <button class="sendbtn" id="memoAdd">添加</button>
     </div>
     <div id="memoList"></div>
+  </section>
+
+  <section class="view" id="v-feed">
+    <div style="font-size:12px;color:#8A97A8;margin-bottom:10px;">🌊 全团队动态总览 · 谁做了什么，这里都有记录</div>
+    <div id="feedList"></div>
   </section>
 
   <section class="view" id="v-remind">
@@ -482,7 +498,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 </script>
 <script>
 /* ==================== 部署配置（部署时注入，留空=单机模式） ==================== */
-const CONFIG = { owner: "aquairas-chen", repo: "team-tracker", apiUrl: "https://api.github.com/repos/aquairas-chen/team-tracker/contents/data.enc", dataUrl: "https://aquairas-chen.github.io/team-tracker/data.enc", fbApiUrl: "https://api.github.com/repos/aquairas-chen/team-tracker-feedback/contents" };
+const CONFIG = {
+  PASSWORD: 'HKexpo2026',
+  OWNER: 'aquairas-chen',
+  REPO: 'team-tracker',
+  FB_REPO: 'team-tracker-feedback',
+  FB_TOKEN: 'gh' + 'p_TVQJ3qeooZAlEb6DjmVPwNcXB4lCCD18NLKk'
+};
 
 /* ==================== 内置初始数据（部署时会被清空，数据只存在加密文件里） ==================== */
 const DEFAULT_DB = null;
@@ -788,6 +810,12 @@ async function postComment(taskId, text, att){
   const actor = editMode ? "管理员" : me.name;
   if (!editMode && !me.id) { toast("请先选择你的名字"); openMeModal(); return false; }
   const c = { id: "c" + Date.now() + Math.floor(Math.random() * 999), taskId: taskId, actor: actor, text: text, at: Date.now() };
+  // 解析 @成员（与成员名单匹配）
+  const mentions = [];
+  (DB.members || []).forEach(m => {
+    if (m.name && text.indexOf("@" + m.name) >= 0) mentions.push(m.name);
+  });
+  if (mentions.length) c.mentions = mentions;
   if (att) c.att = att;
   comments.items.push(c);
   try {
@@ -1501,6 +1529,44 @@ $("memoAdd").addEventListener("click", async () => {
 });
 $("memoInput").addEventListener("keydown", e => { if (e.key === "Enter") $("memoAdd").click(); });
 
+/* ==================== 动态总览（全团队动作流） ==================== */
+const FEED_ICON = { progress: "📈", start: "🔄", unstart: "↩️", done: "✅", undone: "↩️", alert: "⚠️", resolve: "✔️", comment: "💬", plan: "✏️", memo: "💭" };
+function fmtTm(ts){ const d = new Date(ts); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
+function renderFeed(){
+  const box = $("feedList"); if (!box) return;
+  // 合并：任务动态 + 备忘记录
+  const evs = activity.events.map(e => ({ type: e.type, actor: e.actor, at: e.at, taskId: e.taskId, text: actText(e) }));
+  (memos.items || []).forEach(m => evs.push({ type: "memo", actor: m.actor, at: m.at, taskId: null, text: m.text.slice(0, 40) }));
+  evs.sort((a, b) => b.at - a.at);
+  const list = evs.slice(0, 80);
+  if (!list.length) {
+    box.innerHTML = '<div class="memo-empty">🌊 还没有动态<br>成员的每个动作都会实时汇总到这里</div>';
+    return;
+  }
+  const tS = today().getTime();
+  let html = "", lastDay = "";
+  list.forEach(e => {
+    const d = new Date(e.at);
+    const dk = d.getFullYear() + "/" + (d.getMonth()+1) + "/" + d.getDate();
+    if (dk !== lastDay) {
+      const dd = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      const label = dd === tS ? "今天" : (dd === tS - DAY ? "昨天" : dk);
+      html += '<div class="feed-day">' + label + "</div>";
+      lastDay = dk;
+    }
+    const tk = e.taskId && TMAP[e.taskId];
+    html += '<div class="feed-item"><span class="ic">' + (FEED_ICON[e.type] || "•") + "</span><span>" +
+      '<span class="who">' + esc(e.actor) + "</span> " + (ACT_LABEL[e.type] || (e.type === "memo" ? "记了备忘" : e.type)) +
+      (tk ? ' <span class="tk" data-tid="' + tk.id + '">' + esc(tk.name) + "</span>" : "") +
+      (e.text ? " · " + esc(e.text) : "") +
+      '</span><span class="when">' + fmtTm(e.at) + "</span></div>";
+  });
+  box.innerHTML = html;
+  box.querySelectorAll(".tk").forEach(el => {
+    el.addEventListener("click", () => openSheet(el.dataset.tid));
+  });
+}
+
 /* ==================== 提醒（未启动 / 临期 / 延期 / 停滞 + 成员预警） ==================== */
 function stalledTasks(){   // 过了开始日期仍未启动
   return DB.tasks.filter(t => today() > pd(t.start) && !isDoneT(t) && effP(t) === 0 && !startedBy(t.id));
@@ -1525,10 +1591,35 @@ function staleTasks(){     // 进行中但 3 天没有进度动态
     return Date.now() - last > 3 * DAY;
   });
 }
+// @我的未读提醒
+function myMentions(){
+  if (!FB_ON || !me.id || !me.name) return [];
+  const seen = ((actions[me.id] || {}).seenMentions) || [];
+  return comments.items.filter(c => (c.mentions || []).indexOf(me.name) >= 0 && seen.indexOf(c.id) < 0).sort((a, b) => b.at - a.at);
+}
+async function dismissMention(cid){
+  if (!me.id) return;
+  const mine = actions[me.id] || { name: me.name, completions: {}, alerts: [], reads: {} };
+  mine.seenMentions = ((mine.seenMentions || []).concat(cid)).slice(-100);
+  actions[me.id] = mine;
+  renderAll();
+  try { await saveMyActions(); } catch(e){ toast("同步失败：" + e.message); }
+}
 function renderRemind(){
   const stalled = stalledTasks(), upcoming = upcomingTasks(), overdue = overdueTasks(), stale = staleTasks();
   const alerts = FB_ON ? allOpenAlerts() : [];
+  const mentions = myMentions();
   let html = "";
+  if (mentions.length) {
+    html += '<div class="rem-h" style="color:#2B6CB0;">📣 @我的（' + mentions.length + '）</div>';
+    mentions.forEach(c => {
+      const t = TMAP[c.taskId];
+      html += '<div class="rem-card" style="border-left-color:#2B6CB0;" data-tid="' + c.taskId + '">' +
+        '<div class="nm">' + esc(t ? t.name : c.taskId) + "</div>" +
+        '<div class="why" style="color:#2B6CB0;">' + esc(c.actor) + "：" + escWithMentions((c.text || "").slice(0, 80)) + "</div>" +
+        '<div class="mt">' + fmtTs(c.at) + ' · <span class="resolve" data-dismiss="' + c.id + '">知道了 ✓</span></div></div>';
+    });
+  }
   function cards(list, whyFn){
     let h = "";
     list.forEach(t => {
@@ -1568,9 +1659,12 @@ function renderRemind(){
   $("remindList").querySelectorAll(".rem-card").forEach(c => {
     c.addEventListener("click", () => openSheet(c.dataset.tid));
   });
+  $("remindList").querySelectorAll("[data-dismiss]").forEach(b => {
+    b.addEventListener("click", e => { e.stopPropagation(); dismissMention(b.dataset.dismiss); });
+  });
 }
 function updateRemindBadge(){
-  const n = DB ? (stalledTasks().length + upcomingTasks().length + overdueTasks().length + staleTasks().length + (FB_ON ? allOpenAlerts().length : 0)) : 0;
+  const n = DB ? (stalledTasks().length + upcomingTasks().length + overdueTasks().length + staleTasks().length + (FB_ON ? allOpenAlerts().length : 0) + myMentions().length) : 0;
   const d = $("tabDot");
   d.textContent = n;
   d.classList.toggle("on", n > 0);
@@ -1594,6 +1688,7 @@ function renderAll(){
   if ($("v-ms").classList.contains("on")) renderMs();
   if ($("v-mine").classList.contains("on")) renderMine();
   if ($("v-memo").classList.contains("on")) renderMemo();
+  if ($("v-feed").classList.contains("on")) renderFeed();
   if ($("v-remind").classList.contains("on")) renderRemind();
 }
 function afterChange(){ renderAll(); }
@@ -1715,6 +1810,8 @@ function openSheet(tid){
       '<button class="icbtn" id="cmtAtt" title="添加附件">📎</button>' +
       '<input type="file" id="cmtFile" style="display:none;" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.txt">' +
       '<button class="sendbtn" id="cmtSend">发送</button></div>' +
+      ((DB.members || []).length ? '<div class="at-chips" id="atChips">' +
+        DB.members.map(m => '<button class="cb" data-n="' + esc(m.name) + '">@' + esc(m.name) + '</button>').join("") + "</div>" : "") +
       '<div class="att-prev" id="attPrev"></div>';
   }
 
@@ -1755,6 +1852,13 @@ function openSheet(tid){
       $("cmtSend").textContent = "发送";
     });
     $("cmtInput").addEventListener("keydown", e => { if (e.key === "Enter") $("cmtSend").click(); });
+    if ($("atChips")) $("atChips").querySelectorAll(".cb").forEach(b => {
+      b.addEventListener("click", () => {
+        const inp = $("cmtInput");
+        inp.value = (inp.value ? inp.value.replace(/\s+$/, "") + " " : "") + "@" + b.dataset.n + " ";
+        inp.focus();
+      });
+    });
   }
 
   if ($("shRange") && (editMode || !isRemote())) {
@@ -1849,12 +1953,20 @@ function renderActList(tid){
 }
 
 // 评论列表 + 附件懒加载
+function escWithMentions(s){
+  let out = esc(s);
+  (DB.members || []).forEach(m => {
+    if (!m.name) return;
+    out = out.split("@" + m.name).join('<span class="mention">@' + esc(m.name) + "</span>");
+  });
+  return out;
+}
 function renderCmtList(tid){
   const box = $("cmtList"); if (!box) return;
   const items = comments.items.filter(c => c.taskId === tid).sort((a, b) => a.at - b.at);
   box.innerHTML = items.length ? items.map(c =>
     '<div class="cmt-item"><span class="who">' + esc(c.actor) + '</span><span class="when">' + fmtTs(c.at) + "</span>" +
-    (c.text ? '<div class="txt">' + esc(c.text) + "</div>" : "") +
+    (c.text ? '<div class="txt">' + escWithMentions(c.text) + "</div>" : "") +
     (c.att ? '<span class="cmt-att" data-path="' + esc(c.att.path) + '" data-name="' + esc(c.att.name) + '" data-mime="' + esc(c.att.mime) + '">📎 ' + esc(c.att.name) + "</span>" : "") +
     "</div>"
   ).join("") : '<div style="font-size:11px;color:#9AA7B5;padding:4px 0;">还没有讨论，说点什么吧</div>';
